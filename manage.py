@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import os
 import sys
 
-# this is hack to allow "libs" to be added to the PYTHON PATH
-# and is not part of the usual manage.py file
+# ceci est un hack pour permettre à "libs" d'être ajouté au PYTHON PATH
+# et ne fait pas parti du fichier manage.py habituel
 import project.settings
 
 if __name__ == "__main__":

@@ -1,42 +1,43 @@
 *******************************
-Django, an app at a time
+Django, une app à la fois
 *******************************
 
-How to use ?
-==================
 
-Download then extract this project, and run `python ./manage.py`.
+Comment l'utiliser ?
+======================
 
-You don't need to install anything.
+Téléchargez et décompressez le projet, puis lancez `python ./manage.py`.
 
-Go to the URL http://127.0.0.1:8000 and play with the apps.
+Vous n'avez pas besoin d'installer quoi que ce soit.
 
-When you want to see how it works, go to the "apps" directory and watch the commented source code.
+Allez à l'URL http://127.0.0.1:8000 et jouez avec les apps.
 
-Each app assumes you understand the previous ones, and contains a README to guide you.
+Lorsque vous souhaitez voir comme ça marche, allez dans le dossier "apps" et lisez le code source commenté.
 
-Download links:
+Chaque app par du principe que vous comprenez les précédentes, et contient un README pour vous guider.
+
+Liens de téléchargement :
 
   - `English version <https://github.com/sametmax/Django--an-app-at-a-time/archive/master.zip>`_
 
 
-What's in there ?
-==================
+Contenu
+=================
 
-
-- "apps" : contains all the applications, sorted by complexity and requirements. This is what you want to read.
-- "project": the django project itself, containing settings and the main url route definition. You should have a look in there from time to time, it will put the apps in the context of the project and contains so tips.
-- "libs": dependancies such as django or external librariies that you would have otherwise to install. You don't need to look into it, but you can when you start feeling confortable with Django.
-- "libs/ignore_me": the app that list all the apps, and the main page of the project. You can ignore it, not very interesting.
-- "manage.py": the command to interact with the Django project. This one is a bit modified so don't replace it.
-- ".gitignore": a configuration file for git. You don't need this for Django. It's here to help me.
+- "apps" : contient toutes les applications, ordonnées par complexité et dépendances. C'est ce que vous voulez lire.
+- "porject" : le project Django lui-même, contenant les paramètres et la définition principale des URL. Vous devriez y ketter un oeil de temps à autres pour remettre les applications dans leur context, et également apprendre quelques astuces.
+- "libs" : les dépendances telles que Django qu'il faudrait normalement installer. Inutile de regarder là dedans, mais vous pouvez si vous commencer à vous sentir à l'aise avec Django.
+- "libs/ignore_me" : l'app qui liste toutes les apps, et la page principale du projet. Vous pouvez l'ignorer, ce n'est pas très intéressant.
+- "manage.py" : la commande qui permet d'interragir avec le projet Django. Celle-ci a été quelque peu modifiée, donc ne la remplacez pas.
+- ".gitignore" : un fichier de configuration pour Git. Vous n'avez pas besoin de cela pour Django. Il est ici pour m'aider.
 
 
 Notes
 ==========
 
-In a real project, you WOULD have to install something. Dependancies are here provided and dumped in the project for convenience, but you would usually use pip and virtual env in a real project.
+Dans un vrai projet, vous DEVREZ installer quelque chose. Les dependances sont ici fournies directement dans le projet pour des raisons pratiques, mais vous utiliseriez normalement pip et virtual env dans un projet réel.
 
-By the way, this is NOT a tutorial. The purpose is not to replace a full course to learn how Django works, but rather give you a concret example on how each task can be achieve with Django.
+Par ailleurs, ceci n'est PAS un tutorual. Le but n'est pas de remplacer un cours complet pour apprendre comment Django fonctionner, mais plutôt de donner un exemple complet de commet faire chaque tache dans le cadre de Django.
 
-Translations and spell corrections welcome !
+Les traductions et corrections orthographiques sont les bienvenues.
+

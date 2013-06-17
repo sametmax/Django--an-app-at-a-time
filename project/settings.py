@@ -1,35 +1,39 @@
 # -*- coding: utf-8 -*-
 
 
-###############################################################################
-# This file contains settings for your whole project and is generated         #
-# automatically when you do "django-admin.py startproject"                    #
-#                                                                             #
-# Most values are Django settings, erasing the default values you can find in #
-# django/conf/global_settings.py. A lot of original Django settings are not   #
-# changed so you'll have to refer to global_settings.py to know their value.  #
-#                                                                             #
-# Some values are for others Django apps.                                     #
-#                                                                             #
-# Finally, some values are just made up for our own apps.                     #
-#                                                                             #
-# REMEMBER: this is just a regular Python file, which means you can put any   #
-# Python code in it.                                                          #
-#                                                                             #
-# NOTE: the scope of this project is to show you how to do things in apps,    #
-# not how to deploy Django. Therefor the settings content and layout fit      #
-# this purpose and do not reflect how a production site should do it.         #
-# I will specifically put a note when warning applys, and the first           #
-# warning is: "You should have several settings files in a real project       #
-# to seperate production, staging and developpement environnements"           #
-#                                                                             #
-###############################################################################
+#################################################################################
+# Ce fichier contient les paramètres pour le projet complet et est généré       #
+# automatiquement quand vous faites "django-admin.py startproject".             #
+#                                                                               #
+# La plupart des valeurs sont des paramètres de Django, écrasant les valeurs    #
+# que vous pouvez trouver dans libs/django/conf/global_settings.py. La plupart  #
+# de la configuration originale de Django n'est pas modifiée, donc vous devrez  #
+# vous référer global_settings.py pour connaitre les autres valeurs.            #
+#                                                                               #
+# D'autres valeurs sont à destinations d'autres app Django.                     #
+#                                                                               #
+# Enfin, quelques valeurs sont celles que nous avons créer pour nos propres     #
+# apps Django.                                                                  #
+#                                                                               #
+# SOUVENEZ-VOUS : c'est juste un fichier Python ordinnaire, ce qui signifie que #
+# vous pouvez mettre n'importe quel code Python dedans.                         #
+#                                                                               #
+# NOTE : le but de ce projet est de vous montrer comment faire des choses       #
+# dans les apps, pas comment déployer Django. De ce fait, le contenu des        #
+# paramètres et leurs organisations sont orientés dans ce but and ne reflètent  #
+# pas ce que vous devriez faire en production.                                  #
+# Je mettrais des notes là où il faudra faire attention, et la première         #
+# d'entre elles est : "Vous deviez avoir plusieurs fichiers de settings         #
+# dans un vrai projet pour séparer la produciton, la préproduction et le        #
+# développement."                                                               #
+#################################################################################
 
 
-# Since it's a regular Python file, you can import stuff
 
-# This will force all string to be unicode strings, even if we don't
-# set the 'u'
+# Puisque c'est un fichier Python ordinnaire, on peut y faire des imports
+
+# Ceci va forcer toutes les chaînes à être de type 'unicode', même si on
+# n'utilise pas le préfique 'u'
 from __future__ import unicode_literals
 
 
@@ -38,9 +42,10 @@ import sys
 import tempfile
 
 
-# We create dynamically these settings, giving us the absolute path
-# to the project directory, the root directory containing all our work
-# and any other directory we might need
+# Nous créons ces paramètres dynamiquement, ce qui nous donne les chemins
+# absolus vers le dossier du projet et le dossier racine contenant tout
+# notre travail ainsi que tout autre dossier dont nous pourrions avoir
+# besoin.
 PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
 ROOT_DIR = os.path.dirname(PROJECT_DIR)
 APPS_DIR = os.path.join(ROOT_DIR, 'apps')
@@ -48,209 +53,225 @@ libs_DIR = os.path.join(ROOT_DIR, 'libs')
 TEMP_DIR = tempfile.gettempdir()
 
 
-# We add the apps and libs directory to the PYTHON PATH, so we can import each
-# package without prefixing them with the parent package name. This mimic the
-# behavior we would have if they were at the root directory or installed with
-# pip.
+# Nous ajoutons les dossiers "apps" et "libs" au PYTHON PATH, de telle sorte
+# que nous puissions importer chaque package sans avoir à les préfixer du nom
+# du package parent. Ceci imite le comportement que nous aurions si ils
+# étaient à la racine ou installés avec pip.
 #
-# E.G: we can do from "app1_hello.views import hello" instead of
-#      "from apps.app1_hello.views import hello" or "import django" instead of
-#      "from libs import django"
+# Ex: nous pouvons importer "from app1_hello.views import hello" plutôt que
+#     "from apps.app1_hello.views import hello" ou "import django" à la place
+#     de "from libs import django"
 #
-# When you have a small project, you can avoid this and put all apps at the root
-# dir like in the official Django tutorial, but in a big project with a lots of
-# apps, you usually put them all in an "apps" dir like we did, so it's a good
-# thing to know.
+# Quand vous avez un petit projet, vous pouvez évitez cela et mettre toutes
+# les apps dans le dossier racine comme dans le tutorial Django officiel, mais
+# dans un gros projet avec beaucoup d'apps, on les met généralement toutes
+# dans un dossier "apps" comme nous venons de faire, donc c'est une bonne
+# chose à connaître.
 sys.path.append(libs_DIR)
 sys.path.append(APPS_DIR)
 
 
-# Displays error messages on the Web page if something crashes
-# WARNING: default value is True, you should always set it
-# to False in production
+# Affiche des message d'erreurs sur la page Web si quelque chose plante.
+# ATTENTION : la valeur par défaut est True, vous devriez toujours la mettre
+# sur False en production.
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
-# Where to send email alerts. You don't need that at the moments.
+# Où envoyer des alertes emails. Vous n'en avez pas besoin pour le moment.
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
 )
 MANAGERS = ADMINS
 
 
-# The database configuration is a big dictionary. It's the same place to
-# configure postgresql, mysql sqlite or oracle, and you can have several
-# database configured for one project (one per dict key, where the dict key
-# is the database name). You should at least have one "default" database.
-# We will use sqlite because it works out of the box.
+# La configuration de la base de données est un gros dictionnaire. On
+# configure postgresql, mysql, sqlite ou oracle au même endroit, et on peut
+# avoir plusieurs base de données configurées pour un projet (une par clé du
+# dictionnarie, la clé étant le nom de la base de données). Vous devez au
+# moin avoir une base de données nommée "default".
+# Nous allons utiliser sqlite car cela fonctionne sans plus de configuration.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(PROJECT_DIR, 'db.sqlite'),
     }
 }
-# If you install the proper backends, you could also use exotic dabase such
-# as MSAccess or Firebird
+# Si vous installez votre propres backends, vous pouvez aussi utiliser des
+# base de données plus exotiques telles que MSAccess ou Firebird
 
 
-# List here all the URL from which you plan your website to be accessible from.
-# E.G: if you plan to have this website available at ilovegiraffes.com, you
-# should but it in there.
+# Listez ici les URL depuis lesquelles vous souhaitez que votre site soit
+# accessible.
+# Ex : si vous voulez que votre site soit accessible depuis jaimelesgiraffes.com
+# vous devriez le mettre ici.
 ALLOWED_HOSTS = [
- "127.0.0.1"
+ "127.0.0.1" # site web local (uniquement sur ma machine)
 ]
 
 
-# You can choose the timezone you site will be set to. If you set it to None,
-# it will be set to your machine time zone. It recommand this settings, but
-# on the strict condition your server time zone is set to UTC (which it should).
+# Vous pouvez choisir le fuseau horaire de votre site. Si vous mettez None,
+# il sera configurer pour utiliser celui de votre machine. Je recommande
+# cela, mais à la condition que l'heure de votre server soit réglé sur UTC
+# (ce qui est recommandé).
 TIME_ZONE = None
 
-# Unless you plan to do a site in your own langage only (in which case you
-# would benefit from default formatting for time, date, monney, etc), you should
-# let this default value and translate later.
+# À moins de vouloir développer une site dans votre lang uniquement (dans ce
+# cas vous bénéficierait du formatage par défaut de l'heure, des dates, de
+# l'argent, etc), vous devriez laisser cette valeur et traduire le site plus
+# tard.
 LANGUAGE_CODE = 'en-us'
 
-# A unique identifier for your site. It is used by the site framework
-# to find your site name in the database. If you have several sites, increment
-# it by one for each site. Usually you just need to let that alone.
+# Un identifiant unique pour le site. Utilisé par le framework "site" pour
+# identifier le nom du site dans la base de données. Si vous avez plusieurs
+# sites, incrémentez cette valeur de un pour chaque site. En général, on peut
+# ne pas la modifier.
 SITE_ID = 1
 
-# Do you want your text to be translatable in other langages ?
-# If you don't, set it to False to gain some perf.
+# Voulez-vous que le texte soit traductible dans d'autres langues ? Si non,
+# vous pouvez mettre False pour gagnez un peu de perf.
 USE_I18N = True
 
-# Do you want Django to translate dates, monney and numbers according to the
-# locale ? If you don't, set it to False to gain some perf.
+# Voulez-vous que Django formate les dates, l'argent et les nombres selon
+# culture / langue en cours ? Si non, vous pouvez mettre False pour gagnez un
+# peu de perf.
 USE_L10N = True
 
-# True by default. Set it to False. Store everything as UTC and deal with
-# timezone manually using pytz. Really. TZ support sucks in pure Python:
-# http://www.enricozini.org/2009/debian/using-python-datetime/
-USE_TZ = True
+# True par défaut. Mettez le sur False. Stockez tout en UTC, et gérez les
+# fuseaux horaires manuellement en utilisant pytz. Sérieusement. Le support
+# des fuseayx horaires craint avec la lib standard de Python :
+# # http://www.enricozini.org/2009/debian/using-python-datetime/
+USE_TZ = False
 
-# Absolute filesystem path to the directory that will hold user-uploaded files.
-# Example: "/var/www/example.com/media/"
+
+# Chemin absolu du dossier qui va contenir les fichiers uploadés par les
+# utilisateur.
+# # Exemple: "/var/www/example.com/media/"
 #
-# We will probably not use it in this project, but I set it so you can see
-# a way to do it. The directory does not exists for now.
+# Ne sera probablement jamais utilisé par ce projet, mais je le laisse pour
+# que vous puissiez voir une manière de faire. Le dossier n'existe pas pour
+# le moment.
 MEDIA_ROOT = os.path.join(ROOT_DIR, 'var', 'media')
 
-# URL that handles the media served from MEDIA_ROOT. Make sure to use a
-# trailing slash.
 # Examples: "http://example.com/media/", "http://media.example.com/", '/media/'
+# URL gérant les fichiers servis depuis MEDIA_ROOT. Soyez certains de mettre
+# un slash final.
+# Exemples: "http://example.com/media/", "http://media.example.com/", '/media/'
 MEDIA_URL = "/media/"
 
-# Absolute path to the directory static files should be collected to.
-# Don't put anything in this directory yourself; store your static files
-# in apps' "static/" subdirectories and in STATICFILES_DIRS.
-# Example: "/var/www/example.com/static/"
+# Chemin absolu vers le dossier dans lequel les fichiers statiques seront
+# collectés. Ne metez rien dans ce dossier vous-même, stockez vos fichiers
+# statiques dans chaque dossier "static" de chaque app et dans STATICFILES_DIRS.
+# # Exemple: "/var/www/example.com/static/"
 #
-# We will probably not use it in this project, but I set it so you can see
-# a way to do it. The directory does not exists for now.
+# Ne sera probablement jamais utilisé par ce projet, mais je le laisse pour
+# que vous puissiez voir une manière de faire. Le dossier n'existe pas pour
+# le moment.
 STATIC_ROOT = os.path.join(ROOT_DIR, 'var', 'static')
 
-
-# URL prefix for static files.
-# Example: "http://example.com/static/", "http://static.example.com/"
+# Prefix de l'URL qui va servir les fichiers statiques.
+# Exemple: "http://example.com/static/", "http://static.example.com/"
 STATIC_URL = '/static/'
 
-# Additional locations of static files
-# Put here a tuple of absolute path of any directory you want Django
-# to detect automatically your static files (CSS, JS, images...).
-# Each app 'static' directory is automatically added, no need to list it here.
+# Un tuple qui contient des chemins absolus de tous les dossiers que l'on
+# souhaites que Django détecte automatiquement comme contenant des fichiers
+# statiques (CSS, JS, images...).
+# Chaque dossier 'static' de chaque app est automatiquement ajouté, donc
+# pas la peine de les lister ici.
 STATICFILES_DIRS = (
-    # Put strings here, like "/home/html/static" or "C:/www/django/static".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    # Mettez ici des chaînes comme "/home/html/static" ou "C:/www/django/static".
+    # Utilisez toujours des slash, même sous Windows.
+    # Utilisez des chemins absolus, par relatifs.
 )
 
-# List of finder classes that know how to find static files in
-# various locations.
-# Just ignore this, you will not need this unless you store your static files
-# on a CDN, amazon cloud or else.
+# La liste des classes chargées de trouver les fichiers statiques dans divers
+# endroits.
+# Vous pouvez l'ignorer, vous n'en aurez pas besoin à moins de stocker vos
+# fichiers statiques sur un CDN, le cloud d'Amazon ou autre.
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
-# Make this unique, and don't share it with anybody.
-# WARNING: set a different value in production, and don't commit it into a
-# public repository.
+# Soyez sur que ceci est unique, et ne le partagez avec personne.
+# ATTENTION : mettez une valeur différente en production, et ne sauvegardez
+# pas ça dans un dépôt publique.
 SECRET_KEY = '2fhdcfk-0ctkijtc_rqtj2^qw56yc)6$^j4msj3%yn*ib@9ya_'
 
-# List of callables that know how to import templates from various sources.
-# Same as STATICFILES_FINDERS but for html template files.
+# Liste de callables qui savent comment importer les templates depuis divers
+# sources. Comme STATICFILES_FINDERS mais pour les templates HTML.
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.Loader',
     'django.template.loaders.app_directories.Loader',
 #     'django.template.loaders.eggs.Loader',
 )
 
-# Middleware are the Django mecanisme to apply a process to every request.
-# These are the default ones, but you can write your own. You don't need
-# too fiddle with middleware very often.
+# Les middlewares sont le mécanisme de Django pour appliquer un traitement à
+# chaque requête. Vous voyez ici les valeurs par défault, mais vous pouvez
+# écrire les votre. Vous n'autre pas souvent besoin de jouer avec les
+# middleware.
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    # Uncomment the next line for simple clickjacking protection:
+    # Décommentez cette ligne pour activer la protection contre le clickjacking
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-# The python import path to the main urls module. This is where you declare
-# the root of all your urls for all your apps
+# Le chemin d'import Python du module principal d'urls. C'est dans celui-ci
+# qu'on déclare la racine de toutes les URLS de toutes les apps.
 ROOT_URLCONF = 'project.urls'
 
-# Python dotted path to the WSGI application used by Django's runserver.
-# Used for production only.
+# Le chemin d'import du module de l'application WSGI utilisé par Django.
+# Pour vous, utile uniquement pour la production.
 WSGI_APPLICATION = 'project.wsgi.application'
 
-# Same as STATICFILES_DIRS but for html template files. 'template' dirs
-# in apps are automatically detected.
+# Comme STATICFILES_DIRS mais pour les templates HTML. Les dossiers 'templates'
+# de chaque app sont détectés automatiquement.
 TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    # Mettez des chaînes comme "/home/html/django_templates"
+    # ou "C:/www/django/templates".
+    # Utilisez toujours des slash, même sous Windows.
+    # Utilisez des chemins absolus, par relatifs.
 )
 
-# List of python import path of all the application Django should load when
-# it starts. It contains django internal application, additional pip installed
-# applications and your applications. These are the same for Django.
-# Installed application have their static files, template files and models
-# detected.
+# Liste de chemin d'import Python de toutes les applications que Django
+# doit charger au démarrage. Elle contient les applications internes de Django
+# celles installées en plus avec pip et vos propres applications. Pour Django,
+# c'est la même chose.
+# Les applications installées on leur fichiers statiques, leurs templates et
+# modèles détectés automatiquement.
 INSTALLED_APPS = (
 
-    # django apps
+    # applications Django
 
-    'django.contrib.auth',  # password authentication
-    'django.contrib.contenttypes',  # allow generic relations with the ORM
-    'django.contrib.sessions',  # persistent sessions for each user
-    'django.contrib.sites',  # site name in database
-    'django.contrib.messages',  # set a message and display it to the user
-    'django.contrib.staticfiles', # serve static file in dev mode
-    'django.contrib.admin', # an administration tool for the database
+    'django.contrib.auth',  # authentification via password
+    'django.contrib.contenttypes',  # permet les relations génériques via l'ORM
+    'django.contrib.sessions',  # sessions persistantes pour les utilisateurs
+    'django.contrib.sites',  # nom du site en base de données
+    'django.contrib.messages',  # créer et afficher un message pour l'utilisateur
+    'django.contrib.staticfiles', # servir les fichiers statiques en dev
+    'django.contrib.admin', # outil d'administration de la base de données
 
-    # our apps
+    # nos applications
 
     'app1_hello',
     'app2_hello_again',
 
-    # ignore this, it's the app to display the listing of other apps
+    # vous pouvez ignorer cela, c'est l'app qui liste les autres apps
     'ignore_me',
 )
 
-# Django uses the Python log standard facility, and this dictionary is passed
-# to dictConfig (http://docs.python.org/2/library/logging.config.html).
-# This is not the original one, this one allow you to log to the console
-# and a file in temp dir.
+# Django utilise le mécanisme de log standard de Python et ce dictionnaire
+# est donc passé à dictConfig (http://docs.python.org/2/library/logging.config.html).
+# Ce n'est pas la version originale, celui-ci permet de logger dans la console
+# et dans un fichier temporaire.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': { # what to dump in each log
+    'formatters': { # que mettre dans chaque log
         'verbose': {
             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
         },
@@ -258,23 +279,23 @@ LOGGING = {
             'format': '%(levelname)s %(message)s'
         },
     },
-    'filters': { # mandatory since django 1.5
+    'filters': { # obligatoire depuis django 1.5
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
         }
     },
     'handlers': {
-        'mail_admins': { # send a mail to admins
+        'mail_admins': { # envoyer un email aux admins
             'level': 'ERROR',
             'filters': ['require_debug_false'],
             'class': 'django.utils.log.AdminEmailHandler'
         },
-        'console':{ # print on the console
+        'console':{ # afficher dans la console
             'level':'DEBUG',
             'class':'logging.StreamHandler',
             'formatter': 'simple'
         },
-        'file':{ # write in a temp file
+        'file':{ # écrire dans un fichier temporaire
             'level':'INFO',
             'class':'logging.handlers.RotatingFileHandler',
             'formatter': 'verbose',
@@ -284,12 +305,12 @@ LOGGING = {
         },
     },
     'loggers': {
-        'django.request': { # send an email to admins if a request fails
+        'django.request': { # envoyer un email aux admins si une requête échoue
             'handlers': ['mail_admins'],
             'level': 'ERROR',
             'propagate': True,
         },
-        'django.project': { # write manually to the console and the tempfile
+        'django.project': { # écrire manuellement sur la console et dans un fichier temporaire
             'handlers': ['console', 'file'],
             'level': 'ERROR',
             'propagate': True,
@@ -300,20 +321,13 @@ LOGGING = {
 
 
 #################################################################################
-# SETTINGS THAT ARE NOT IN THE ORIGINAL FILE BUT WE CHANGE THEIR DEFAULT VALUES #
+# PARAMÈTRES POUR LES AUTRES APPLICATIONS                                       #
 #################################################################################
 
-# NONE YET
+# AUCUN POUR LE MOMENT
 
 #################################################################################
-# SETTINGS FOR OTHER APPS                                                       #
+# PARAMÈTRES POUR NOS PROPRES APPLICATIONS                                      #
 #################################################################################
 
-# NONE YET
-
-#################################################################################
-# SETTINGS YOUR OWN APPS                                                        #
-#################################################################################
-
-# NONE YET
-
+# AUCUN POUR LE MOMENT
