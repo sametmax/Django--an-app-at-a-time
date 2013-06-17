@@ -22,7 +22,7 @@ def hello(request):
        Affiche une page HTML avec "Hello world" comme titre principal
     """
 
-    # crée une contexte de template depuis un dictionnaire, de telle sorte
+    # crée un contexte de template depuis un dictionnaire, de telle sorte
     # que notre template puisse utiliser le mot "world" à travers la variable
     # "name"
     d = {"name": "world"}
