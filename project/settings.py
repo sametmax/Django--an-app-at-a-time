@@ -8,11 +8,11 @@
 # La plupart des valeurs sont des paramètres de Django, écrasant les valeurs    #
 # que vous pouvez trouver dans libs/django/conf/global_settings.py. La plupart  #
 # de la configuration originale de Django n'est pas modifiée, donc vous devrez  #
-# vous référer global_settings.py pour connaitre les autres valeurs.            #
+# vous référer à global_settings.py pour connaitre les autres valeurs.          #
 #                                                                               #
-# D'autres valeurs sont à destinations d'autres app Django.                     #
+# D'autres valeurs sont à destinations d'autres apps Django.                    #
 #                                                                               #
-# Enfin, quelques valeurs sont celles que nous avons créer pour nos propres     #
+# Enfin, quelques valeurs sont celles que nous avons créées pour nos propres    #
 # apps Django.                                                                  #
 #                                                                               #
 # SOUVENEZ-VOUS : c'est juste un fichier Python ordinnaire, ce qui signifie que #
@@ -20,20 +20,20 @@
 #                                                                               #
 # NOTE : le but de ce projet est de vous montrer comment faire des choses       #
 # dans les apps, pas comment déployer Django. De ce fait, le contenu des        #
-# paramètres et leurs organisations sont orientés dans ce but and ne reflètent  #
+# paramètres et leurs organisations sont orientés dans ce but et ne reflètent   #
 # pas ce que vous devriez faire en production.                                  #
 # Je mettrais des notes là où il faudra faire attention, et la première         #
-# d'entre elles est : "Vous deviez avoir plusieurs fichiers de settings         #
+# d'entre elles est : "Vous devriez avoir plusieurs fichiers de settings        #
 # dans un vrai projet pour séparer la produciton, la préproduction et le        #
 # développement."                                                               #
 #################################################################################
 
 
 
-# Puisque c'est un fichier Python ordinnaire, on peut y faire des imports
+# Puisque c'est un fichier Python ordinaire, on peut y faire des imports
 
 # Ceci va forcer toutes les chaînes à être de type 'unicode', même si on
-# n'utilise pas le préfique 'u'
+# n'utilise pas le préfixe 'u'
 from __future__ import unicode_literals
 
 
@@ -87,8 +87,8 @@ MANAGERS = ADMINS
 # La configuration de la base de données est un gros dictionnaire. On
 # configure postgresql, mysql, sqlite ou oracle au même endroit, et on peut
 # avoir plusieurs base de données configurées pour un projet (une par clé du
-# dictionnarie, la clé étant le nom de la base de données). Vous devez au
-# moin avoir une base de données nommée "default".
+# dictionnaire, la clé étant le nom de la base de données). Vous devez au
+# moins avoir une base de données nommée "default".
 # Nous allons utiliser sqlite car cela fonctionne sans plus de configuration.
 DATABASES = {
     'default': {
@@ -96,7 +96,7 @@ DATABASES = {
         'NAME': os.path.join(PROJECT_DIR, 'db.sqlite'),
     }
 }
-# Si vous installez votre propres backends, vous pouvez aussi utiliser des
+# Si vous installez votre propre backend, vous pouvez aussi utiliser des
 # base de données plus exotiques telles que MSAccess ou Firebird
 
 
@@ -110,13 +110,13 @@ ALLOWED_HOSTS = [
 
 
 # Vous pouvez choisir le fuseau horaire de votre site. Si vous mettez None,
-# il sera configurer pour utiliser celui de votre machine. Je recommande
+# il sera configuré pour utiliser celui de votre machine. Je recommande
 # cela, mais à la condition que l'heure de votre server soit réglé sur UTC
 # (ce qui est recommandé).
 TIME_ZONE = None
 
-# À moins de vouloir développer une site dans votre lang uniquement (dans ce
-# cas vous bénéficierait du formatage par défaut de l'heure, des dates, de
+# À moins de vouloir développer un site dans votre langue uniquement (dans ce
+# cas vous bénéficierez du formatage par défaut de l'heure, des dates, de
 # l'argent, etc), vous devriez laisser cette valeur et traduire le site plus
 # tard.
 LANGUAGE_CODE = 'en-us'
@@ -138,7 +138,7 @@ USE_L10N = True
 
 # True par défaut. Mettez le sur False. Stockez tout en UTC, et gérez les
 # fuseaux horaires manuellement en utilisant pytz. Sérieusement. Le support
-# des fuseayx horaires craint avec la lib standard de Python :
+# des fuseaux horaires craint avec la lib standard de Python :
 # # http://www.enricozini.org/2009/debian/using-python-datetime/
 USE_TZ = False
 
@@ -152,7 +152,6 @@ USE_TZ = False
 # le moment.
 MEDIA_ROOT = os.path.join(ROOT_DIR, 'var', 'media')
 
-# Examples: "http://example.com/media/", "http://media.example.com/", '/media/'
 # URL gérant les fichiers servis depuis MEDIA_ROOT. Soyez certains de mettre
 # un slash final.
 # Exemples: "http://example.com/media/", "http://media.example.com/", '/media/'
@@ -168,7 +167,7 @@ MEDIA_URL = "/media/"
 # le moment.
 STATIC_ROOT = os.path.join(ROOT_DIR, 'var', 'static')
 
-# Prefix de l'URL qui va servir les fichiers statiques.
+# Prefixe de l'URL qui va servir les fichiers statiques.
 # Exemple: "http://example.com/static/", "http://static.example.com/"
 STATIC_URL = '/static/'
 
@@ -193,7 +192,7 @@ STATICFILES_FINDERS = (
 #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
-# Soyez sur que ceci est unique, et ne le partagez avec personne.
+# Soyez sûr que ceci est unique, et ne le partagez avec personne.
 # ATTENTION : mettez une valeur différente en production, et ne sauvegardez
 # pas ça dans un dépôt publique.
 SECRET_KEY = '2fhdcfk-0ctkijtc_rqtj2^qw56yc)6$^j4msj3%yn*ib@9ya_'
@@ -208,8 +207,8 @@ TEMPLATE_LOADERS = (
 
 # Les middlewares sont le mécanisme de Django pour appliquer un traitement à
 # chaque requête. Vous voyez ici les valeurs par défault, mais vous pouvez
-# écrire les votre. Vous n'autre pas souvent besoin de jouer avec les
-# middleware.
+# écrire les vôtres. Vous n'aurez pas souvent besoin de jouer avec les
+# middlewares.
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -234,14 +233,14 @@ TEMPLATE_DIRS = (
     # Mettez des chaînes comme "/home/html/django_templates"
     # ou "C:/www/django/templates".
     # Utilisez toujours des slash, même sous Windows.
-    # Utilisez des chemins absolus, par relatifs.
+    # Utilisez des chemins absolus, pas relatifs.
 )
 
 # Liste de chemin d'import Python de toutes les applications que Django
 # doit charger au démarrage. Elle contient les applications internes de Django
 # celles installées en plus avec pip et vos propres applications. Pour Django,
 # c'est la même chose.
-# Les applications installées on leur fichiers statiques, leurs templates et
+# Les applications installées ont leurs fichiers statiques, leurs templates et
 # modèles détectés automatiquement.
 INSTALLED_APPS = (
 
