@@ -207,7 +207,7 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'project.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-# Used for production only.
+# For you, useful in production only.
 WSGI_APPLICATION = 'project.wsgi.application'
 
 # Same as STATICFILES_DIRS but for html template files. 'template' dirs
