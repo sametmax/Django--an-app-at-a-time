@@ -1,5 +1,5 @@
-"settings.py" contains the settings for your Django project. It's an ordinary Python module you can import and use like any other modules.
+"settings.py" contient les paramètres de votre projet Django. C'est un module python ordinaire, que vous pouvez importer et utiliser comme n'import quel autre module.
 
-"urls.py "contains code that associate urls with apps, so when a user go to your website on a specific url, the code of the right app is used.
+"urls.py" contient le code qui associe des urls avec des apps. Grâce à ce fichier, quand quelqu'un va sur votre site sur une certaine url, c'est le code de la bonne app qui s'exécute.
 
-"wsgi.py" is only used in production and you can ignore it. However, you can't delete it as it became mandatory in the last Django release.
+"wsgi.py" est seulement utilisé en production, vous pouvez l'ignorer. Cependant, vous ne pouvez pas le supprimer, car il est devenu obligatoire dans la dernière version de Django.
