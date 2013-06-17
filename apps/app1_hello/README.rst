@@ -1,7 +1,7 @@
-The simplest clean Django "hello world".
+Le plus simple des "hello world" Django propres
 
-Read views.py first.
+Lisez d'abord "views.py".
 
-Then template/home.html.
+Ensuite "template/home.html".
 
-And enventually urls.py.
+Enfin, "urls.py".

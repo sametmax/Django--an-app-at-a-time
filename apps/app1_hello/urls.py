@@ -5,12 +5,13 @@ from django.conf.urls import patterns, url
 
 urlpatterns = patterns('',
 
-    # This says to django to call the function
-    # 'home' in the module 'views' of the app 'app1_hello'" for any URL
+    # Cela dit à Djando d'appeler la fonction 'home' du module 'views' de
+    # l'app 'app1_hello' pour toute URL.
     url(r'', 'app1_hello.views.hello'),
 
 )
 
+# Cette configuration d'URL est incluse depuis "project/urls.py", ce qui
+# explique pourquoi cela fonctionne. Vous devriez lire ce fichier pour
+# mieux comprendre le routing URL.
 
-# This url pattern is included in project/urls.py, this is why it works.
-# You will want to read this file to understand url routing better.

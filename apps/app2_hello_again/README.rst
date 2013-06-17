@@ -1,7 +1,8 @@
-It's the same as the previous app, but the response is constructed manually, step by step.
+La même chose que l'app précédente, mais la réponse est construite manuellement, pas à pas.
 
-You usually won't use this in your own code, but it's useful to see how it works.
+Normalement vous n'aurez pas besoin de cela dans votre propre code, mais c'est utilie pour voir
+comme tout cela marche.
 
-First got to urls.py to see an alternative way to map a url to a view.
+Premièrement, allez dans "urls.py" pour voir une manière alternative de mapper l'url à une vue.
 
-Then go to views.py to see the detailed way of building a response.
+Ensuite allez dans "views.py" pour voir la manière détaillée de constuire une réponse.

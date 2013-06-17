@@ -4,23 +4,24 @@ from django.conf.urls import patterns, include, url
 from django.contrib import admin
 
 
-# This is required for the admin to work
+# Obligatoire pour que l'admin fonctionne
 admin.autodiscover()
 
 
 urlpatterns = patterns('',
 
-    # this display the admin on the url /admin/
+    # affiche l'admin à l'URL /admin/
     url(r'^admin/', include(admin.site.urls)),
 
-    # include all our apps, one by one
+    # inclut nos apps, une par une
 
-    # this say that any url starting with 'app1' should be directed to the
-    # first app
+    # Ceci dit que tout URL commençant par 'app1' doir être dirigée sur notre
+    # première app
     url(r'^app1/', include('app1_hello.urls')),
 
     url(r'^app2/', include('app2_hello_again.urls')),
 
-    # ignore this, it's the page of the project listing all the apps
+
+    # Ignorez cela, c'est la page listant toutes les autres apps
     url(r'^$', include('ignore_me.urls')),
 )

@@ -1,31 +1,48 @@
 # -*- coding: utf-8 -*-
 
-"""
-    Since everything in Django is just Python, you can add docstring to
-    every module, class and function. And you should.
 
-    This module does the EXACT same thing as app1, but show you the step
-    by step process so you can see what's happening.
-
-    You don't need to do this in your site, it's just here so you can
-    see the how it works.
-"""
-
-
-from django.template import Context, loader
-from django.http import HttpResponse
+from django.shortcuts import render
 
 
 def hello(request):
-    """
-       Display an HTML page with "Hello world" as a main title
-    """
+    return render(request, 'hello.html', {"name": "world"})
 
-    # creates the template context from a dictionary, so that in the template
-    # you can use the value "world" via the "name" variable
-    d = {"name": "world"}
-    template_context = Context(d)
-    template = loader.get_template('hello.html')
-    html = template.render(template_context)
 
-    return HttpResponse(html)
+
+###################################################################################
+# Voici comment ça marche :                                                       #
+#                                                                                 #
+# hello() est une simple fonction qui DOIT accepter une requête HTTP et retourner #
+# une réponse.                                                                    #
+#                                                                                 #
+# Cette fonction est appelée automatiquement quand l'url de urls.py qui pointe    #
+# dessus est atteinte.                                                            #
+#                                                                                 #
+# L'objet "request" est passé automatiquement par Django, et nous pouvons         #
+# faire ce que bon nous semble dans le corps de la fonction.                      #
+#                                                                                 #
+# La seule obligation de notre part est de retourner une réponse HTTP,            #
+# ce que nous faisons en retournant le résultat de render(), qui construit pour   #
+# nous une réponse en utilisant la requête initiale, un nom de template et        #
+# le contexte du template.                                                        #
+#                                                                                 #
+# Le nom du template est le nom du fichier que nous souhaitons utiliser pour      #
+# formater nos données. Dans ce cas, "hello.html" contient juste un peu de HTML.  #
+# Vous pouvez le trouver dans le dossier "templates" de cette app.                #
+#                                                                                 #
+# Le dernière paramètre est le contexte du template, c'est un dictionnaire de     #
+# variables que nous souhaitons rendre disponibles dans le template. Ici          #
+# nous passons la valeur "world", and nous lui donnons le noms "name" donc,       #
+# dans le template, vous pons utiliser la variable "name" pour afficher son       #
+# contenu.                                                                        #
+#                                                                                 #
+# render() mélange le template et son xontexte et fabrique la page Web dont       #
+# nous avons besoin.                                                              #
+#                                                                                 #
+# Django à sa propre vision du pattern MVC. Le controlleur est le framework,      #
+# le modèle sont les classes ORM, mais les vues sont les fonctions de views.py,   #
+# pas les templates.                                                              #
+###################################################################################
+
+
+
