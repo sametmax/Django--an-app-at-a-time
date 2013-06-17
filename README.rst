@@ -19,6 +19,7 @@ Chaque app par du principe que vous comprenez les précédentes, et contient un 
 Liens de téléchargement :
 
   - `English version <https://github.com/sametmax/Django--an-app-at-a-time/archive/master.zip>`_
+  - `Version française <https://github.com/sametmax/Django--an-app-at-a-time/archive/fran%C3%A7ais.zip>`_
 
 
 Contenu
