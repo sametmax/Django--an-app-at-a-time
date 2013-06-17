@@ -15,6 +15,10 @@ When you want to see how it works, go to the "apps" directory and watch the comm
 
 Each app assumes you understand the previous ones, and contains a README to guide you.
 
+Download links:
+
+  - `English version <https://github.com/sametmax/Django--an-app-at-a-time/archive/master.zip>`_
+
 
 What's in there ?
 ==================
