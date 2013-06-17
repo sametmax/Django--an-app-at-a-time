@@ -3,11 +3,12 @@
 
 ###############################################################################
 # This file contains settings for your whole project and is generated         #
-# automatically when you do "django-admin.py startproject"                    #
+# automatically when you do "django-admin.py startproject".                   #
 #                                                                             #
 # Most values are Django settings, erasing the default values you can find in #
-# django/conf/global_settings.py. A lot of original Django settings are not   #
-# changed so you'll have to refer to global_settings.py to know their value.  #
+# libs/django/conf/global_settings.py. A lot of original Django settings arez #
+# not changed so you'll have to refer to global_settings.py to know their     #
+# value.                                                                      #
 #                                                                             #
 # Some values are for others Django apps.                                     #
 #                                                                             #
