@@ -30,16 +30,16 @@ def hello(request):
 # formater nos données. Dans ce cas, "hello.html" contient juste un peu de HTML.  #
 # Vous pouvez le trouver dans le dossier "templates" de cette app.                #
 #                                                                                 #
-# Le dernière paramètre est le contexte du template, c'est un dictionnaire de     #
+# Le dernier paramètre est le contexte du template, c'est un dictionnaire de      #
 # variables que nous souhaitons rendre disponibles dans le template. Ici          #
-# nous passons la valeur "world", and nous lui donnons le noms "name" donc,       #
-# dans le template, vous pons utiliser la variable "name" pour afficher son       #
+# nous passons la valeur "world", et nous lui donnons le nom "name" donc,         #
+# dans le template, nous pourrons utiliser la variable "name" pour afficher son   #
 # contenu.                                                                        #
 #                                                                                 #
-# render() mélange le template et son xontexte et fabrique la page Web dont       #
+# render() mélange le template et son contexte et fabrique la page Web dont       #
 # nous avons besoin.                                                              #
 #                                                                                 #
-# Django à sa propre vision du pattern MVC. Le controlleur est le framework,      #
+# Django à sa propre vision du pattern MVC. Le contrôleur est le framework,       #
 # le modèle sont les classes ORM, mais les vues sont les fonctions de views.py,   #
 # pas les templates.                                                              #
 ###################################################################################
