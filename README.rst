@@ -6,7 +6,9 @@ Django, une app à la fois
 Comment l'utiliser ?
 ======================
 
-Téléchargez et décompressez le projet, puis lancez `python ./manage.py`.
+Téléchargez et décompressez le projet, puis lancez::
+
+    python ./manage.py runserver
 
 Vous n'avez pas besoin d'installer quoi que ce soit.
 
