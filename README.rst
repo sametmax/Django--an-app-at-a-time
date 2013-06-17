@@ -18,6 +18,7 @@ Each app assumes you understand the previous ones, and contains a README to guid
 Download links:
 
   - `English version <https://github.com/sametmax/Django--an-app-at-a-time/archive/master.zip>`_
+  - `Version française <https://github.com/sametmax/Django--an-app-at-a-time/archive/fran%C3%A7ais.zip>`_
 
 
 What's in there ?
