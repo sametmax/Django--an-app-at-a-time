@@ -5,7 +5,9 @@ Django, an app at a time
 How to use ?
 ==================
 
-Download then extract this project, and run `python ./manage.py`.
+Download then extract this project, and run::
+
+    python ./manage.py runserver
 
 You don't need to install anything.
 
