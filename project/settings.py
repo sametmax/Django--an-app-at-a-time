@@ -126,9 +126,9 @@ USE_I18N = True
 USE_L10N = True
 
 # True by default. Set it to False. Store everything as UTC and deal with
-# timezone manually using pytz. Really. TZ support sucks in pure Python:
+# timezone manually using pytz. Really. TZ support sucks in Python stdlib:
 # http://www.enricozini.org/2009/debian/using-python-datetime/
-USE_TZ = True
+USE_TZ = False
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/var/www/example.com/media/"
