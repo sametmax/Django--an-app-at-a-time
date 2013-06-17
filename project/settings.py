@@ -80,7 +80,7 @@ MANAGERS = ADMINS
 
 
 # The database configuration is a big dictionary. It's the same place to
-# configure postgresql, mysql sqlite or oracle, and you can have several
+# configure postgresql, mysql, sqlite or oracle, and you can have several
 # database configured for one project (one per dict key, where the dict key
 # is the database name). You should at least have one "default" database.
 # We will use sqlite because it works out of the box.
@@ -90,7 +90,7 @@ DATABASES = {
         'NAME': os.path.join(PROJECT_DIR, 'db.sqlite'),
     }
 }
-# If you install the proper backends, you could also use exotic dabase such
+# If you install the proper backends, you could also use exotic database such
 # as MSAccess or Firebird
 
 
@@ -98,7 +98,7 @@ DATABASES = {
 # E.G: if you plan to have this website available at ilovegiraffes.com, you
 # should but it in there.
 ALLOWED_HOSTS = [
- "127.0.0.1"
+ "127.0.0.1" # local web site (on my machine only)
 ]
 
 
