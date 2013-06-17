@@ -1,0 +1,28 @@
+{% extends 'ignore_me/base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+<h1>Applications</h1>
+</div>
+
+<p>Click on any app to see the results.</p>
+
+
+<p>
+<ul>
+{% for app in apps %}
+    <li>
+        <a href="{{ app.0 }}/">
+            {{ app.0|title }}: {{ app|slice:"1:"|join:" "|title}}
+        </a>
+    </li>
+{% endfor %}
+</ul>
+</p>
+
+<p>Read the source in: {{ settings.APPS_DIR }}</p>
+
+{% endblock content %}
+
+
