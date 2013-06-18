@@ -41,16 +41,28 @@ import os
 import sys
 import tempfile
 
+# Cette partie est un peu compliquée et n'est pas forcément nécessaire
+# à votre projet, mais elle rend le projet complètement portable car tous
+# les chemins de tous les dossiers sont crées dynamiquement au lieu
+# d'être écris en dur.
+
+# On récupère le chemin du fichier settings.py (la variable __FILE__ contient
+# automatiquement le chemin du fichier en cours) et on transforme la chaîne
+# en unicode au cas où il y ait des accents dans ce nom
+# (sys.getfilesystemencoding() nous donnes l'encoding du système de fichier
+# qui peut être différent sous Windows, Mac ou Unix)
+FS_ENCODING = sys.getfilesystemencoding()
+SETTINGS_FILE = __file__.decode(FS_ENCODING)
 
 # Nous créons ces paramètres dynamiquement, ce qui nous donne les chemins
 # absolus vers le dossier du projet et le dossier racine contenant tout
 # notre travail ainsi que tout autre dossier dont nous pourrions avoir
 # besoin.
-PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
+PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(SETTINGS_FILE)))
 ROOT_DIR = os.path.dirname(PROJECT_DIR)
 APPS_DIR = os.path.join(ROOT_DIR, 'apps')
 libs_DIR = os.path.join(ROOT_DIR, 'libs')
-TEMP_DIR = tempfile.gettempdir()
+TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
 
 
 # Nous ajoutons les dossiers "apps" et "libs" au PYTHON PATH, de telle sorte

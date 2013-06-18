@@ -16,7 +16,7 @@ Allez à l'URL http://127.0.0.1:8000 et jouez avec les apps.
 
 Lorsque vous souhaitez voir comme ça marche, allez dans le dossier "apps" et lisez le code source commenté.
 
-Chaque app par du principe que vous comprenez les précédentes, et contient un README pour vous guider.
+Chaque app part du principe que vous comprenez les précédentes, et contient un README pour vous guider.
 
 Liens de téléchargement :
 
