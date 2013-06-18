@@ -33,37 +33,12 @@
 # set the 'u'
 from __future__ import unicode_literals
 
-
 import os
-import sys
-import tempfile
 
-
-# We create dynamically these settings, giving us the absolute path
-# to the project directory, the root directory containing all our work
-# and any other directory we might need
-PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
-ROOT_DIR = os.path.dirname(PROJECT_DIR)
-APPS_DIR = os.path.join(ROOT_DIR, 'apps')
-libs_DIR = os.path.join(ROOT_DIR, 'libs')
-TEMP_DIR = tempfile.gettempdir()
-
-
-# We add the apps and libs directory to the PYTHON PATH, so we can import each
-# package without prefixing them with the parent package name. This mimic the
-# behavior we would have if they were at the root directory or installed with
-# pip.
-#
-# E.G: we can do from "app1_hello.views import hello" instead of
-#      "from apps.app1_hello.views import hello" or "import django" instead of
-#      "from libs import django"
-#
-# When you have a small project, you can avoid this and put all apps at the root
-# dir like in the official Django tutorial, but in a big project with a lots of
-# apps, you usually put them all in an "apps" dir like we did, so it's a good
-# thing to know.
-sys.path.append(libs_DIR)
-sys.path.append(APPS_DIR)
+# We get the path of all this directories from the "path" module. The path.py
+# file is something we code ourself, it's not provided by Django, but it's
+# very useful to avoid hard coding all these paths.
+from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR
 
 
 # Displays error messages on the Web page if something crashes
