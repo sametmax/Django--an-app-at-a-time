@@ -4,7 +4,7 @@
      Nous avons 3 vues cette fois :
 
      - une principale à la racine de notre motif d'URLs
-     - une statique avec une URL prefixée
+     - une statique avec une URL préfixée
      - une dynamique avec des paramètres dans l'URL
 """
 
@@ -30,7 +30,7 @@ def prefix(request):
 def hello(request, name, prefix="hello"):
     """
         La vue "hello", avec des arguments. La premier est obligatoire, le
-        second est optionel et a une valeur par défaut.
+        second est optionnel et a une valeur par défaut.
 
         Ces valeurs seront extraites de l'URL et passées automatiquement à la
         vue.
@@ -40,7 +40,7 @@ def hello(request, name, prefix="hello"):
 
     # Le context contient maintenant deux variables. Si vous êtes paresseux,
     # vous pouvez utiliser "context = locals()" pour récupérer un dictionnaire
-    # de toutes les variables et éviter de populer le contexte manuellement.
+    # de toutes les variables et éviter de remplir le contexte manuellement.
     context = {
         'name': name,
         'prefix': prefix
