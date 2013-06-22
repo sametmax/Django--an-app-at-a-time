@@ -195,7 +195,8 @@ TEMPLATE_DIRS = (
 
 # List of python import path of all the applications Django should load when
 # it starts. It contains Django internal applications, additional pip installed
-# applications and your own applications. These are all the same to Django.
+# applications and your own applications. These are all the same to Django,
+# they're just regular importable Python modules.
 # Installed applications have their static files, template files and models
 # automatically detected.
 INSTALLED_APPS = (
