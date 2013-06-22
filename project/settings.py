@@ -213,7 +213,7 @@ TEMPLATE_DIRS = (
 # Liste de chemin d'import Python de toutes les applications que Django
 # doit charger au démarrage. Elle contient les applications internes de Django
 # celles installées en plus avec pip et vos propres applications. Pour Django,
-# c'est la même chose.
+# c'est la même chose, ce sont juste des modules Python importables.
 # Les applications installées ont leurs fichiers statiques, leurs templates et
 # modèles détectés automatiquement.
 INSTALLED_APPS = (
@@ -225,13 +225,14 @@ INSTALLED_APPS = (
     'django.contrib.sessions',  # sessions persistantes pour les utilisateurs
     'django.contrib.sites',  # nom du site en base de données
     'django.contrib.messages',  # créer et afficher un message pour l'utilisateur
-    'django.contrib.staticfiles', # servir les fichiers statiques en dev
-    'django.contrib.admin', # outil d'administration de la base de données
+    'django.contrib.staticfiles',  # servir les fichiers statiques en dev
+    'django.contrib.admin',  # outil d'administration de la base de données
 
     # nos applications
 
     'app1_hello',
     'app2_hello_again',
+    'app3_basic_routing',
 
     # vous pouvez ignorer cela, c'est l'app qui liste les autres apps
     'ignore_me',

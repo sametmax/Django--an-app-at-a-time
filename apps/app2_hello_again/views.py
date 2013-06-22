@@ -27,7 +27,7 @@ def hello(request):
     # "name"
     d = {"name": "world"}
     template_context = Context(d)
-    template = loader.get_template('hello.html')
+    template = loader.get_template('hello2.html')
     html = template.render(template_context)
 
     return HttpResponse(html)

@@ -20,7 +20,7 @@ urlpatterns = patterns('',
     url(r'^app1/', include('app1_hello.urls')),
 
     url(r'^app2/', include('app2_hello_again.urls')),
-
+    url(r'^app3/', include('app3_basic_routing.urls')),
 
     # Ignorez cela, c'est la page listant toutes les autres apps
     url(r'^$', include('ignore_me.urls')),
