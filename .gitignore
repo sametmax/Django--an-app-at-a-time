@@ -36,3 +36,8 @@ Thumbs.db
 *~
 *.lock
 *.out
+
+# Custom files  #
+#################
+
+future_apps
