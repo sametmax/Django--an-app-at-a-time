@@ -5,7 +5,7 @@
     called.
 """
 
-from django.conf.urls import patterns, url
+from django.conf.urls import patterns, url, include
 
 
 urlpatterns = patterns('',
@@ -15,6 +15,11 @@ urlpatterns = patterns('',
 
     url(r'prefix/$', 'app3_basic_routing.views.prefix'),
 
+    # It's possible to map an URL to a view from anywhere (such as another app)
+    url(r'hello_from_app1/', 'app1_hello.views.hello'),
+
+    # You can also include a whole urls.py from anywhere
+    url(r'app2_included/', include('app2_hello_again.urls')),
 
     # We still have two parts in this URL declaration :
     # - on the left what the URL should look like
@@ -42,7 +47,6 @@ urlpatterns = patterns('',
     # because the URL will be compared from the top patterns to the bottom ones.
 
     url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello'),
-
 
     # This index view is the root route, you should always declare it last
     # because it's view will be called if no other URLs match.
