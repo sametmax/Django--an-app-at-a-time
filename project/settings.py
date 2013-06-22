@@ -210,10 +210,11 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles', # serve static file in dev mode
     'django.contrib.admin', # an administration tool for the database
 
-    # our apps
+    # our apps (their are just regular importable Python modules)
 
     'app1_hello',
     'app2_hello_again',
+    'app3_basic_routing',
 
     # ignore this, it's the app to display the listing of other apps
     'ignore_me',

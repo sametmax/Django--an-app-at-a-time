@@ -25,7 +25,7 @@ def hello(request):
     # you can use the value "world" via the "name" variable
     d = {"name": "world"}
     template_context = Context(d)
-    template = loader.get_template('hello.html')
+    template = loader.get_template('hello2.html')
     html = template.render(template_context)
 
     return HttpResponse(html)
