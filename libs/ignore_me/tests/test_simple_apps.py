@@ -50,7 +50,9 @@ class SimpleAppsTest(TestCase):
             'You/Hey/'
         )
 
-        for link in links:
+        self.assertTrue(self.client.get('/app3/' + links[0]).status_code == 200)
+
+        for link in links[1:]:
             self.assertInResponse(link, response)
             link_response = self.client.get('/app3/' + link)
             for world in link.split('/'):
