@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import patterns, url, include
 
 
 """
@@ -15,6 +15,12 @@ urlpatterns = patterns('',
     # prefix()
 
     url(r'prefix/$', 'app3_basic_routing.views.prefix'),
+
+    # On peut lier une URL a une vue de n'importe où (comme depuis une autre app)
+    url(r'hello_from_app1/', 'app1_hello.views.hello'),
+
+    # On peut aussi inclure un urls.py depuis n'importe où
+    url(r'app2_included/', include('app2_hello_again.urls')),
 
 
     # Nous avons toujours deux parties dans cette déclaration de route :

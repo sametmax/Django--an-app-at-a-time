@@ -44,16 +44,15 @@ class SimpleAppsTest(TestCase):
         response = self.client.get("/app3/")
 
         links = (
-            'prefix/',
-            'world/',
-            'You/',
-            'You/Hey/'
+            ('prefix/', 'pr\w?fix'),
+            ('world/', 'world'),
+            ('You/', 'you'),
+            ('You/Hey/', 'hey'),
+            ('hello_from_app1/', 'hello'),
+            ('app2_included/', 'hello')
         )
 
-        self.assertTrue(self.client.get('/app3/' + links[0]).status_code == 200)
-
-        for link in links[1:]:
+        for link, world in links:
             self.assertInResponse(link, response)
             link_response = self.client.get('/app3/' + link)
-            for world in link.split('/'):
-                self.assertInResponse(world, link_response)
+            self.assertInResponse(world, link_response)
