@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 
+"""
+    "routing" is declaring what url will trigger which vue funtion to be
+    called.
+"""
+
 from django.conf.urls import patterns, url
 
 
@@ -39,8 +44,8 @@ urlpatterns = patterns('',
     url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello'),
 
 
-    # This index view is the root view, you should always declare it last
-    # because it will be displayed if no other URLs match.
+    # This index view is the root route, you should always declare it last
+    # because it's view will be called if no other URLs match.
 
     url(r'', 'app3_basic_routing.views.index'),
 

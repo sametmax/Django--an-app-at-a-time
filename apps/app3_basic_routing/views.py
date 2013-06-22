@@ -38,9 +38,9 @@ def hello(request, name, prefix="hello"):
         Have a look at urls.py to see how we ask for it.
     """
 
-    # The context now contains two variable. If you are lazy, you can
-    # use context = locals() to create a dictionary of all local variables
-    # and avoid populting the context manually
+    # The context now contains two variables". If you are lazy, you can
+    # use "context = locals()"" to create a dictionary of all local variables
+    # and avoid populating the context manually
     context = {
         'name': name,
         'prefix': prefix
