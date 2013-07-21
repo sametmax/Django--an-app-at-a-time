@@ -16,58 +16,62 @@
 
 <ul>
     <li>
-        <!--  We use the variable from views.py -->
-        <!--  WOn utilise la variable de views.py -->
-        <a href="{{ first_link }}"><strong>{{ first_link }}/strong></a>
+        {# On utilise la variable de views.py  #}
+        <a href="{{ first_link }}"><strong>{{ first_link }}</strong></a>
     </li>
 
     <li>
-        <!-- C'est ce qu'on appelle une "template tag" dans la terminologie Django. C'est comme
+        {% comment %}
+            C'est ce qu'on appelle une "template tag" dans la terminologie Django. C'est comme
             une fonction, mais que l'on peut utiliser dans un template. On doit l'écrire entre
             {% %} et pas {{ }} comme pour les variables. Les paramètres sont listés sur la droite,
             séparés par des espaces, et nom des virgules comme dans une fonction ordinnaire.
 
             Le tag "url" prend le nom d'une route (et optionnellement des paramètres d'URL) et
             retourne la bonne URL, en ce basant sur tous les urls.py.
-        -->
+        {% endcomment %}
         <a href="{% url 'hello' %}"><strong>{% url 'hello' %}</strong></a>
     </li>
 
     <li>
-        <!-- On peut utiliser le mot clé "as" pour mettre la valeur retournée depuis le tag "url"
-            dans une variable. Ceci permet de réutiliser le résultat au lieu d'appeler le tag
-            plusieurs fois comme ci-dessus.
-
-            Notez que "as" ne marche pas avec tous les tags.
-        -->
-        {% url 'include' as third_link %}
-        <a href=".{{ third_link }}"><strong>{{ third_link }}</strong></a>
+        {% comment %}
+            {% url 'include' %} ne marche pas et va provoquer une erreur
+            disant que Django ne peut trouver de route pour ce nom.
+        {% endcomment %}
+        <strong>Ceci ne marche pas.</strong>
     </li>
 
     <li>
-        <!-- Le motif de l'URL attend un nom ((?P<name>\w+)/$), donc nous
+        {% comment %}
+             Le motif de l'URL attend un nom ((?P<name>\w+)/$), donc nous
              le fournissons avec un paramètre.
-        -->
+        {% endcomment %}
         <a href="{% url 'hello_name' 'world' %}">
             <strong>{% url 'hello_name' 'world' %}</strong>
         </a>
     </li>
 
     <li>
-        <!--
-            "as" marche avec des paramètres également.
-        -->
-        {% url hello_name 'You' as hello_link %}
+       {% comment %}
+            On peut utiliser le mot clé "as" pour mettre la valeur retournée depuis le tag "url"
+            dans une variable. Ceci permet de réutiliser le résultat au lieu d'appeler le tag
+            plusieurs fois comme ci-dessus.
+
+            Notez que "as" ne marche pas avec tous les tags.
+        {% endcomment %}
+        {% url 'hello_name' 'You' as hello_link %}
         <a href="{{ hello_link }}">
             <strong>{{ hello_link }}</strong>
         </a>
     </li>
 
     <li>
-        <!-- Au fait, vous pouvez passer les paramètres en utilisant leurs noms
+        {% comment %}
+             Au fait, vous pouvez passer les paramètres en utilisant leurs noms
              comme on le ferait avec une fonction. L'ordre des paramètres
-             est ignoré. -->
-        {% url hello_name prefix='Hey' name='You' as prefixed_link %}
+             est ignoré.
+        {% endcomment %}
+        {% url 'hello_prefix' prefix='Hey' name='You' as prefixed_link %}
         <a href="{{ prefixed_link }}">
             <strong>{{ prefixed_link }}</strong>
         </a>

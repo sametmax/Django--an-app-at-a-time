@@ -23,6 +23,10 @@ urlpatterns = patterns('',
     # regardez dans templates/app4_index.html pour voir comment
     # on utilise ces noms.
     url(r'hello_from_app1/', 'app1_hello.views.hello', name="hello"),
+
+    # Utiliser un nom pour un include ne marchera pas et ne produira pas
+    # ce que vous voulez. Si vous voulez bénéficier des noms de route dans
+    # ce cas, nommés les routes contenues dans le fichier urls.py inclu.
     url(r'app2_included/', include('app2_hello_again.urls'), name="include"),
 
     # En Python, il est utilisé de bouger les paramètres sur un autre ligne,
@@ -34,6 +38,6 @@ urlpatterns = patterns('',
 
     url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello', name='hello_name'),
 
-    url(r'', 'app3_basic_routing.views.index'),
+    url(r'', 'app4_links.views.index'),
 
 )
