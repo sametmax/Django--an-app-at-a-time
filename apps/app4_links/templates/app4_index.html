@@ -53,7 +53,13 @@
     </li>
 
     <li>
-        {# "as" works with parameters too. #}
+        {% comment %}
+             You can use the "as" keyword to stuff the returned values from the "url" tag into
+             a variable. This allows you to reuse the result instead of calling the tag several
+             times like above.
+
+             Note that "as" doesn't work with all tags.
+        {% endcomment %}
         {% url 'hello_name' 'You' as hello_link %}
         <a href="{{ hello_link }}">
             <strong>{{ hello_link }}</strong>
