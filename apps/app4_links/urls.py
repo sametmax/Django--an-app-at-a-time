@@ -21,6 +21,10 @@ urlpatterns = patterns('',
     # Starting from here, we will use names in the template,
     # so look at templates/app4_index.html to see how we use this name.
     url(r'hello_from_app1/', 'app1_hello.views.hello', name="hello"),
+
+    # Naming routes doesn't work with include. This will not do what you
+    # expect. To benefit from name, you should name routes from
+    # the included urls.py.
     url(r'app2_included/', include('app2_hello_again.urls'), name="include"),
 
     # In Python it's allowed to move parameters on another line, so we use
@@ -31,6 +35,6 @@ urlpatterns = patterns('',
 
     url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello', name='hello_name'),
 
-    url(r'', 'app3_basic_routing.views.index'),
+    url(r'', 'app4_links.views.index'),
 
 )

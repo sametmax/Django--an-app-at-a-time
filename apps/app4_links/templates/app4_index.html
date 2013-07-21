@@ -17,56 +17,55 @@
 
 <ul>
     <li>
-        <!--  We use the variable from views.py -->
-        <a href="{{ first_link }}"><strong>{{ first_link }}/strong></a>
+        {# We use the variable from views.py #}
+        <a href="{{ first_link }}"><strong>{{ first_link }}</strong></a>
     </li>
 
     <li>
-        <!-- This, is what is called a "template tag" in Django's terminology. It's like a fonction,
+        {% comment %}
+            This, is what is called a "template tag" in Django's terminology. It's like a fonction,
              but that you can use in a template. It needs to be written between {% %} and not
              {{ }} like variables. Parameters are listed on the right, separated by spaces, not
              comas like in regular functions.
 
              The "url" tag take a route name (and optionally, urls parameters) and
              return the proper URL, based on urls.py.
-        -->
+        {% endcomment %}
         <a href="{% url 'hello' %}"><strong>{% url 'hello' %}</strong></a>
     </li>
 
     <li>
-        <!-- You can use the "as" keyword to stuff the returned values from the "url" tag into
-             a variable. This allows you to reuse the result instead of calling the tag several
-             times like above.
-
-             Note that "as" doesn't work with all tags.
-        -->
-        {% url 'include' as third_link %}
-        <a href=".{{ third_link }}"><strong>{{ third_link }}</strong></a>
+        {% comment %}
+            {% url include %} would produce an error saying it can't
+            find the proper route.
+        {% endcomment %}
+        <strong>This doesn't work.</strong>
     </li>
 
     <li>
-        <!-- The URL pattern expect a name ((?P<name>\w+)/$), so we provide
+        {% comment %}
+            The URL pattern expect a name ((?P<name>\w+)/$), so we provide
              one as a parameter.
-        -->
+        {% endcomment %}
         <a href="{% url 'hello_name' 'world' %}">
             <strong>{% url 'hello_name' 'world' %}</strong>
-        </a>: a similar result than the previous apps.
+        </a>
     </li>
 
     <li>
-        <!--
-            "as" works with parameters too.
-        -->
-        {% url hello_name 'You' as hello_link %}
+        {# "as" works with parameters too. #}
+        {% url 'hello_name' 'You' as hello_link %}
         <a href="{{ hello_link }}">
             <strong>{{ hello_link }}</strong>
         </a>
     </li>
 
     <li>
-        <!-- By the way, you can pass the parameters using their name,
-            just like with function. It ignores the parameter orders -->
-        {% url hello_name prefix='Hey' name='You' as prefixed_link %}
+        {% comment %}
+             By the way, you can pass the parameters using their name,
+            just like with function. It ignores the parameter orders
+        {% endcomment %}
+        {% url 'hello_prefix' prefix='Hey' name='You' as prefixed_link %}
         <a href="{{ prefixed_link }}">
             <strong>{{ prefixed_link }}</strong>
         </a>
