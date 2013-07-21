@@ -19,7 +19,7 @@ urlpatterns = patterns('',
     url(r'prefix/$', 'app3_basic_routing.views.prefix', name="prefix"),
 
     # Starting from here, we will use names in the template,
-    # so loook at templates/app4_index.html to see how we use this name.
+    # so look at templates/app4_index.html to see how we use this name.
     url(r'hello_from_app1/', 'app1_hello.views.hello', name="hello"),
     url(r'app2_included/', include('app2_hello_again.urls'), name="include"),
 

@@ -13,12 +13,12 @@
 <h1>Links</h1>
 
 
-<p>This is the same as the previous app, but we generate them dynamically. Try the links :</p>
+<p>This is the same as the previous app, but we generate them dynamically. Try these links :</p>
 
 <ul>
     <li>
         <!--  We use the variable from views.py -->
-        <a href="{{ first_link }}"><strong>{{ first_link }}/strong></a>: the statically prefixed URL.
+        <a href="{{ first_link }}"><strong>{{ first_link }}/strong></a>
     </li>
 
     <li>
@@ -27,10 +27,10 @@
              {{ }} like variables. Parameters are listed on the right, separated by spaces, not
              comas like in regular functions.
 
-             The "url" fonction take a route name (and optionally, urls parameters) and
+             The "url" tag take a route name (and optionally, urls parameters) and
              return the proper URL, based on urls.py.
         -->
-        <a href="{% url 'hello' %}"><strong>{% url 'hello' %}</strong></a>: a view from another app.
+        <a href="{% url 'hello' %}"><strong>{% url 'hello' %}</strong></a>
     </li>
 
     <li>
@@ -41,12 +41,12 @@
              Note that "as" doesn't work with all tags.
         -->
         {% url 'include' as third_link %}
-        <a href=".{{ third_link }}"><strong>{{ third_link }}</strong></a>: urls.py included from another app.
+        <a href=".{{ third_link }}"><strong>{{ third_link }}</strong></a>
     </li>
 
     <li>
         <!-- The URL pattern expect a name ((?P<name>\w+)/$), so we provide
-             one a a parameter.
+             one as a parameter.
         -->
         <a href="{% url 'hello_name' 'world' %}">
             <strong>{% url 'hello_name' 'world' %}</strong>
@@ -60,7 +60,7 @@
         {% url hello_name 'You' as hello_link %}
         <a href="{{ hello_link }}">
             <strong>{{ hello_link }}</strong>
-        </a>: we can change the name displayed since it's extracted from the URL.
+        </a>
     </li>
 
     <li>
@@ -69,7 +69,7 @@
         {% url hello_name prefix='Hey' name='You' as prefixed_link %}
         <a href="{{ prefixed_link }}">
             <strong>{{ prefixed_link }}</strong>
-        </a>: we can add the optional parameter.
+        </a>
     </li>
 
 </ul>
