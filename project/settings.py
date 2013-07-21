@@ -216,6 +216,7 @@ INSTALLED_APPS = (
     'app1_hello',
     'app2_hello_again',
     'app3_basic_routing',
+    'app4_links',
 
     # ignore this, it's the app to display the listing of other apps
     'ignore_me',

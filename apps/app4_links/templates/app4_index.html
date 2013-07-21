@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Links
+    </title>
+</head>
+<body>
+
+<p><a href="/">Home</a></p>
+
+<h1>Links</h1>
+
+
+<p>This is the same as the previous app, but we generate them dynamically. Try the links :</p>
+
+<ul>
+    <li>
+        <!--  We use the variable from views.py -->
+        <a href="{{ first_link }}"><strong>{{ first_link }}/strong></a>: the statically prefixed URL.
+    </li>
+
+    <li>
+        <!-- This, is what is called a "template tag" in Django's terminology. It's like a fonction,
+             but that you can use in a template. It needs to be written between {% %} and not
+             {{ }} like variables. Parameters are listed on the right, separated by spaces, not
+             comas like in regular functions.
+
+             The "url" fonction take a route name (and optionally, urls parameters) and
+             return the proper URL, based on urls.py.
+        -->
+        <a href="{% url 'hello' %}"><strong>{% url 'hello' %}</strong></a>: a view from another app.
+    </li>
+
+    <li>
+        <!-- You can use the "as" keyword to stuff the returned values from the "url" tag into
+             a variable. This allows you to reuse the result instead of calling the tag several
+             times like above.
+
+             Note that "as" doesn't work with all tags.
+        -->
+        {% url 'include' as third_link %}
+        <a href=".{{ third_link }}"><strong>{{ third_link }}</strong></a>: urls.py included from another app.
+    </li>
+
+    <li>
+        <!-- The URL pattern expect a name ((?P<name>\w+)/$), so we provide
+             one a a parameter.
+        -->
+        <a href="{% url 'hello_name' 'world' %}">
+            <strong>{% url 'hello_name' 'world' %}</strong>
+        </a>: a similar result than the previous apps.
+    </li>
+
+    <li>
+        <!--
+            "as" works with parameters too.
+        -->
+        {% url hello_name 'You' as hello_link %}
+        <a href="{{ hello_link }}">
+            <strong>{{ hello_link }}</strong>
+        </a>: we can change the name displayed since it's extracted from the URL.
+    </li>
+
+    <li>
+        <!-- By the way, you can pass the parameters using their name,
+            just like with function. It ignores the parameter orders -->
+        {% url hello_name prefix='Hey' name='You' as prefixed_link %}
+        <a href="{{ prefixed_link }}">
+            <strong>{{ prefixed_link }}</strong>
+        </a>: we can add the optional parameter.
+    </li>
+
+</ul>
+
+<p>Generating dynamically links ensure you can change views, urls or entire apps much more easily.</p>
+
+</body>
+</html>
+

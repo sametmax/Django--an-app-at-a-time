@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    "routing" is declaring what url will trigger which vue funtion to be
+    "routing" is declaring what url will trigger which vue function to be
     called.
 """
 
