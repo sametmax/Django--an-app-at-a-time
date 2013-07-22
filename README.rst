@@ -40,7 +40,7 @@ Notes
 
 Dans un vrai projet, vous DEVREZ installer quelque chose. Les dependances sont ici fournies directement dans le projet pour des raisons pratiques, mais vous utiliseriez normalement pip et virtual env dans un projet réel.
 
-Par ailleurs, ceci n'est PAS un tutorual. Le but n'est pas de remplacer un cours complet pour apprendre comment Django fonctionner, mais plutôt de donner un exemple complet de commet faire chaque tache dans le cadre de Django.
+Par ailleurs, ceci n'est PAS un tutorial. Le but n'est pas de remplacer un cours complet pour apprendre comment Django fonctionner, mais plutôt de donner un exemple complet de commet faire chaque tache dans le cadre de Django.
 
 Les traductions et corrections orthographiques sont les bienvenues.
 
