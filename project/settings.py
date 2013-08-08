@@ -42,7 +42,7 @@ import os
 # Le fichier path.py est un quelque chose que nous codons nous même, il n'est pas
 # fournit avec Django, mais il est très pratique pour ne pas avoir à écrire
 # ces chemins en dur.
-from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR
+from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
 
 # Affiche des message d'erreurs sur la page Web si quelque chose plante.
@@ -234,6 +234,7 @@ INSTALLED_APPS = (
     'app2_hello_again',
     'app3_basic_routing',
     'app4_links',
+    'app5_get_post_and_cookies',
 
     # vous pouvez ignorer cela, c'est l'app qui liste les autres apps
     'ignore_me',

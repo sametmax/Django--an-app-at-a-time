@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        GET, POST et cookies
+    </title>
+</head>
+<body>
+
+<p><a href="/">Home</a></p>
+
+<h1>GET, POST et cookies</h1>
+
+<p>
+  <strong>Hello {{ name }} !</strong>.
+-
+Vous avez utilisé une requête {{ method }} pour venir ici.
+</p>
+
+<p>Vous pouvez utiliser n'importe quel 'name' pour envoyer une valeur GET. Comme <a href=".?name=You">?name=You</a>.</p>
+
+<p>Vous pouvez aussi utiliser une formulaire HTML ordinaire pour envoyer une requête POST :</p>
+
+<form action="." method="post" accept-charset="utf-8">
+<input type="text" name="name">
+<input type="submit" name="Ok" value="Ok">
+{# À ignorer. Nous verrons les formulaires plus tard. #}
+{% csrf_token %}
+</form>
+
+
+</body>
+</html>
+
