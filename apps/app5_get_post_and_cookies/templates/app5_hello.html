@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        GET, POST and cookies
+    </title>
+</head>
+<body>
+
+<p><a href="/">Home</a></p>
+
+<h1>GET, POST and cookies</h1>
+
+<p>
+  <strong>Hello {{ name }} !</strong>.
+-
+
+You used a {{ method }} request to come here.
+</p>
+
+<p>You can use any 'name' in a URL to set a GET value. Such as <a href=".?name=You">?name=You</a>.</p>
+
+<p>You can also use a regular HTML form to generate a POST request :</p>
+
+<form action="." method="post" accept-charset="utf-8">
+<input type="text" name="name">
+<input type="submit" name="Ok" value="Ok">
+{# Ignore this for now. We'll see forms latter. #}
+{% csrf_token %}
+</form>
+
+
+</body>
+</html>
+
