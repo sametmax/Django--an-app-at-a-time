@@ -1,0 +1,91 @@
+{% extends 'app6_base.html' %}
+
+
+
+
+Le contenu hors d'un bloc n'est PAS rendu. Ceci ne va PAS apparaitre.
+
+
+
+
+
+{# This block will fill in the block 'content' in the parent #}
+{# Ce bloc va remplir le bloc 'content' du parent #}
+{% block content %}
+
+<p><a href="..">Retour</a></p>
+
+<h1>Héritage de template</h1>
+
+<strong><big>/!\ Regardez le code source avant /!\</big></strong>
+
+<p>L'héritage est une forme de réutilisation de template, mais ce n'est PAS une inclusion.</p>
+
+<p><strong>Dans cet exemple, la vue fait le rendu de CE (<em>app6_inheritance.html</em>) template.</strong></p>
+
+<p>Mais ce template hérite d'un autre template nommé <em>app6_base.html</em>.</p>
+
+<p>Cela marche ainsi :</p>
+
+<ol>
+    <li>This templates (<em>app6_inheritance.html</em>) says which template it inherits from using the <code>extends</code> tag.</li>
+    <li>This templates define named blocks of content using the <code>block</code> tag.</li>
+    <li>When the view renders the template, it wraps this (<em>app6_inheritance.html</em>) template in the parent (<em>app6_base.html</em>), filling the parent blocks with the child blocks.</li>
+
+    <li>Ce template (<em>app6_inheritance.html</em>) dit de quel template il hérite en utilisant le tag <code>extends</code>.</li>
+    <li>Ce template définie des blocs de contenu nommés avec le tag <code>block</code>.</li>
+    <li>Quand la vue fait le rendu du template, elle enrobe ce (<em>app6_inheritance.html</em>) template dans le parent (<em>app6_base.html</em>), remplissant les blocks du parents avec ceux de l'enfant.</li>
+
+</ol>
+
+<p>Schématiquement, cela marche ainsi :</p>
+
+<p>Envant (<em>app6_inheritance.html</em>) :</p>
+
+<pre>
+         _____
+        |_____|
+
+         _____
+        |     |
+        |     |
+        |_____|
+</pre>
+
+<p>au moment du rendu, il est enrobé DANS le parent (<em>app6_base.html</em>) :</p>
+
+<pre>
+    ................
+    .     _____    .
+    .    |_____|   .
+    .              .
+    .     _____    .
+    .    |     |   .
+    .    |     |   .
+    .    |_____|   .
+    .              .
+    ................
+</pre>
+
+<p>Cela marche à l'envers d'une inclusion. Dans une inclusion, on ferait le rendu du parent, et on insérerait l'enfant.</p>
+
+<p>Il n'est pas obligatoire de remplir tous les blocks du parent (qui peuvent avoir des valeurs par défaut), and on peut hériter d'un enfant, permettant ainsi des schémas d'héritage complexes.</p>
+
+{% endblock %}
+
+
+
+{# L'ordre des blocs n'a PAS d'importance #}
+
+
+
+{# Ce bloc va rempir le bloc 'title' du parent #}
+{% block title %}
+    Template inheritance
+{% endblock %}
+
+
+
+
+{# Un bloc vide empêchera le rendu du bloc du parent correspondant. #}
+{% block useless %}{% endblock %}

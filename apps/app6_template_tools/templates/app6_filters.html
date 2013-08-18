@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Filres dans les templates
+    </title>
+
+    <style type="text/css">
+        table {border-collapse: collapse; border: 3px solid #ccc;}
+        td, th {height: 26px;  border: 3px solid #ccc; padding:1em; text-align:center;}
+    </style>
+</head>
+<body>
+
+<p><a href="..">Retour</a></p>
+
+<h1>Filres dans les templates</h1>
+
+<p>Un filtre est une fonction limitée enrobée dans un code spécial, de telle sorte qu'elle puisse être appelée dans un template Django. La syntaxe est :</p>
+
+<code>{ { variable_name|filter_name:'args' } }</code>
+
+<p>Il y a de nombreux filtres, et <strong>ils servent essentiellement à transformer le contenu d'une variable</strong>, le plus souvent pour le formatter.</p>
+
+<p>Voici quelques exemples usuels :</p>
+
+<table>
+<tr>
+    <th>Contenu de la variable</th>
+    <th>Filtre</th>
+    <th>Résultat</th>
+    <th>Note</th>
+</tr>
+<tr>
+    <td>{{ number }}  <small><em>[<a href=".">recharger</a> pour changer de valeur]</em></small></td>
+    <td><code> number|add:'-1' </code></td>
+    <td>{{ number|add:'-1' }}</td>
+    <td>Des valeurs positives et négatives sont autorisées.</td>
+</tr>
+<tr>
+    <td>{{ today }}</td>
+    <td><code> today|date:"D d M Y" </code></td>
+    <td>{{ today|date:"D d M Y" }}</td>
+    <td>You avez aussi des raccourcis de format comme <code>SHORT_DATE_FORMAT</code> pour les formats les plus utilisés.</td>
+</tr>
+<tr>
+    <td>{{ quote }}</td>
+    <td><code> quote|title </code></td>
+    <td>{{ quote|title }}</td>
+    <td>Voir aussi : <code>lower</code>, <code>upper</code>...</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td> <code>html</code> </td>
+    <td>{{ html }}</td>
+    <td>Le HTML est automatiquement échappé.</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td><code> html|safe </code></td>
+    <td>{{ html|safe }}</td>
+    <td>Uniquement avec du HTML de confiance.</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td><code> html|removetags:'a script style img' </code></td>
+    <td>{{ html|removetags:'a script style img' }}</td>
+    <td>Voir aussi : <code>striptags</code> pour retirer tous les tags.</td>
+</tr>
+<tr>
+    <td>{{ answer }}</td>
+    <td><code> answer|yesno:'Ok,Not Ok,Err...' </code></td>
+    <td>{{ answer|yesno:'Ok,Not Ok,Err...' }}</td>
+    <td>Voir aussi : <code>default</code>, pour obtenir une valeur par défaut si c'est False ou None</td>
+</tr>
+<tr>
+    <td>{{ url }}</td>
+    <td><code> url|urlizetrunc:'30' </code></td>
+    <td>{{ url|urlizetrunc:'30' }}</td>
+    <td>Voir aussi : <code>urllize</code>, qui ne tronque pas</td>
+</tr>
+<tr>
+    <td>{{ phrase }}</td>
+    <td><code> urlphrase|truncatewords:'15' </code></td>
+    <td>{{ phrase|truncatewords:'15' }}</td>
+    <td>Voir aussi : <code>truncatechars</code>, qui tronques par lettre</td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td><code> people|join:', ' </code></td>
+    <td>{{ people|join:', ' }}</td>
+    <td></td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td><code> &lt;ul&gt; people|slice:'2:'|unordered_list &lt;/ul&gt;</code></td>
+    <td><ul>{{ people|slice:'2:'|unordered_list }}</ul></td>
+
+    <td>On peut chaîner autant de filtres qu'on le souhaite. Ici nous utilisons <code>slice</code>, qui mime la syntaxe <code>[]</code> de Python pour le slicing, et <code>unordered_list</code>, qui permet d'être paresseux et éviter d'écrire des listes à la main.</td>
+</tr>
+<tr>
+    <td>{{ random_people }}  <small><em>[<a href=".">recharger</a> pour changer de valeur]</em></small></td>
+    <td><code>Il y a { { random_people|length } } personne{ { random_people|length|pluralize:'s' } }</code></td>
+    <td>Il y a {{ random_people|length }} personne{{ random_people|length|pluralize:'s' }}</td>
+    <td>Les filtres s'entendent bien ensemble : ici <code>length</code> nous donne le nombre d'éléments dans le tuple, tandis que <code>pluralize</code> décide si il faut ajouter un 's' ou non.</td>
+</tr>
+<tr>
+    <td>{{ money }}</td>
+    <td><code>{ % load humanize % }{ { money|intcomma } }</code></td>
+    <td>{% load humanize %}{{ money|intcomma }}</td>
+    <td>Certains filtres requièrent l'import d'un module au préalable en appelant <code>load</code>. Si vous ne le faites pas, vous aurez une erreur vous signalant que le filtre n'existe pas. <code>humanize</code> est dans l'app <code>'django.contrib.humanize'</code> qui doit donc être ajoutée à <code>INSTALLED_APPS</code> dans les settings. Ce n'est pas le cas par défaut.</td>
+</tr>
+</table>
+
+<p>Vous pouvez créer vos propres filtres, mais nous verrons cela une autre fois.</p>
+
+
+</body>
+</html>
+

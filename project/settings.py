@@ -85,15 +85,12 @@ ALLOWED_HOSTS = [
 
 # Vous pouvez choisir le fuseau horaire de votre site. Si vous mettez None,
 # il sera configuré pour utiliser celui de votre machine. Je recommande
-# cela, mais à la condition que l'heure de votre server soit réglé sur UTC
+# cela, mais à la condition que l'heure de votre serveur soit réglé sur UTC
 # (ce qui est recommandé).
 TIME_ZONE = None
 
-# À moins de vouloir développer un site dans votre langue uniquement (dans ce
-# cas vous bénéficierez du formatage par défaut de l'heure, des dates, de
-# l'argent, etc), vous devriez laisser cette valeur et traduire le site plus
-# tard.
-LANGUAGE_CODE = 'en-us'
+# La localisation de base (langue, pays...) de votre site.
+LANGUAGE_CODE = 'fr-fr'
 
 # Un identifiant unique pour le site. Utilisé par le framework "site" pour
 # identifier le nom du site dans la base de données. Si vous avez plusieurs
@@ -227,6 +224,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',  # créer et afficher un message pour l'utilisateur
     'django.contrib.staticfiles',  # servir les fichiers statiques en dev
     'django.contrib.admin',  # outil d'administration de la base de données
+    'django.contrib.humanize', # tools pour formatter les valeurs humainement
 
     # nos applications
 
@@ -235,6 +233,7 @@ INSTALLED_APPS = (
     'app3_basic_routing',
     'app4_links',
     'app5_get_post_and_cookies',
+    'app6_template_tools',
 
     # vous pouvez ignorer cela, c'est l'app qui liste les autres apps
     'ignore_me',

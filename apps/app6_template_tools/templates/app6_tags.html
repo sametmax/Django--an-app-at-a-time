@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Tags dans les templates
+    </title>
+
+    <style type="text/css">
+        table {border-collapse: collapse; border: 3px solid #ccc;}
+        td, th {height: 26px;  border: 3px solid #ccc; padding:1em; text-align:center;}
+        dl, ul, pre, code {text-align: left;}
+        dt { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<p><a href="..">Retour</a></p>
+
+<h1>Tags dans les templates</h1>
+
+<p>Un tag est une fonction limitée enrobée dans un code spécial, de telle sorte qu'elle puisse être appelée dans un template Django. La syntaxe est :</p>
+
+<code>{ % tags value_as_variable_name 'value2' param_name='param_value' % }</code>
+
+<p>Vous avez déjà rencontré un tag : <code>{ % url % }</code>. Il y a de nombreux autres tags, et ils servent essentiellement à la gestion logique.</p>
+
+<p>Voici quelques exemples usuels. :</p>
+
+<table>
+<tr>
+    <th>Valeur de la variable</th>
+    <th>Tag</th>
+    <th>Résultat</th>
+    <th>Note</th>
+</tr>
+<tr>
+    <td>N/A</td>
+    <td> <code>now "jS F Y H:i"</code> </td>
+    <td>{% now "jS F Y H:i" %}</td>
+    <td>Certains tags produice des valeurs. Celui-ci retourne la date du jour formatée selon vos désirs.</td>
+</tr>
+<tr>
+    <td>{{ answer }} <small><em>[<a href=".">recharger</a> pour changer de valeur]</em></small></td>
+    <td>
+    <pre>
+{ % if answer % }
+    Ok
+{ % else % }
+    Pas Ok
+{ % endif % }
+    </pre>
+    </td>
+    <td>
+        {% if answer %}
+            Ok
+        {% else %}
+            Pas Ok
+        {% endif %}
+    </td>
+    <td>Les tags peuvent être en plusieurs parties. Dans ce cas, ils DOIVENT avoir une partie fermante, nommée 'endquelquechose'. Entre les parties, vous pouvez mettre du HTML, d'autres tags ou même des variables avec des filtres.</td>
+</tr>
+<tr>
+    <td>{{ number }} and {{ answer }} <small><em>[<a href=".">recharger</a> pour changer de valeur]</em></small></td>
+    <td>
+    <code>
+:{ % if number > 1 and answer % }======={ % endif % })
+    </code>
+    </td>
+    <td>
+        :{% if number > 1 and answer %}======={% endif %})
+    </td>
+    <td><code>else</code> est optionnel. Vous pouvez utiliser des conditions simples également.</td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    &lt;dt&gt;Personnes :&lt;/dt&gt;
+    { % for person in people % }
+        &lt;dd&gt;{ { person } }&lt;/dd&gt;
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            <dt>Personnes :</dt>
+            {% for person in people %}
+                <dd>{{ person }}</dd>
+            {% endfor %}
+        </dl>
+    </td>
+    <td>Vous pouvez utiliser la boucle <code>for</code> comme d'habitude. Faites juste attention à ne pas oublier <code>endfor</code>.</td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    { % for team, persons in teams.items % }
+        &lt;dt&gt;{ { team } } :&lt;/dt&gt;
+        { % for person in persons % }
+            &lt;dd&gt;{ { person } }&lt;/dd&gt;
+        { % endfor % }
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            {% for team, persons in teams.items %}
+                <dt>{{ team }}</dt>
+                {% for person in persons %}
+                    <dd>{{ person }}</dd>
+                {% endfor %}
+            {% endfor %}
+        </dl>
+    </td>
+    <td>Si vous avez besoin d'utiliser une méthode, n'écrivez pas les parenthèses. Comme dans une boucle ordinnaire, vous pouvez imbriquer autant de boucles que vous le désirez, et utiliser l'unpacking.</td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    &lt;dt&gt;Team A&lt;/dt&gt;
+    { % for person in teams.A % }
+        &lt;dd&gt;{ { forloop.counter } } - { { person } }&lt;/dd&gt;
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            <dt>Team A</dt>
+            {% for person in teams.A %}
+                <dd>{{ forloop.counter }} - {{ person }}</dd>
+            {% endfor %}
+        </dl>
+    </td>
+    <td><p>Si vous avez besoin d'utiliser <code>[]</code>,  utilisez un point à la place. <code>team['A']</code> devient <code>team.A</code> et <code>team['A'][0]</code> devient <code>team.A.0</code>. Vous avez aussi accès à une variable nommée <code>forloop</code> qui est créée automatiquement par Django dans tout bloc <code>for</code>. Ses attributs contiennent des informations utiles, telles que :</p>
+<ul><li><code>forloop.counter</code>: un compteur qui débute à 1</li>
+<li><code>forloop.first</code>: <code>True</code> si <code>forloop.counter == 1</code></li>
+<li><code>forloop.last</code>: <code>True</code> si on est au dernier tour de boucle</li>
+<li><code>forloop.parentloop</code>: la boucle du dessus dans le cas de boucles imbriquées. </li></ul>
+    </td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+{ % with first_element=teams.A.0|upper % }
+        &lt;p&gt;'{ { first_element } }'' is { { first_element|length } } characters long&lt;/p&gt;
+{ % endwith % }
+    </pre>
+    </td>
+    <td>
+        <dl>
+            {% with first_element=teams.A.0|upper %}
+                    <p>'{{ first_element }}'' fait {{ first_element|length }} caractères de long</p>
+            {% endwith %}
+        </dl>
+    </td>
+    <td><code>with</code> n'a rien à voir avec le mot clé Python du même nom. C'est un moyen de créer une variable temporaire. Ici nous faisons <code>first_element = teams['A'][0].upper()</code>, afin de pouvoir réutiliser le résultat plusieurs fois dans le bloc. Notez que les filtres peuvent être utilisés après les look ups, et même dans des tags.</td>
+    </td>
+</tr>
+
+<tr>
+    <td>Un chrétien, un musulman et un boudiste entrent dans un bar. Le barman dit : "c'est une blague ou quoi ?"</td>
+    <td>
+    <pre>
+{ % filter upper|truncatewords:10 % }
+    Un chrétien, un musulman et un boudiste entrent dans un bar. Le barman dit : "c'est une blague ou quoi ?"
+{ % endfilter % }
+    </pre>
+    </td>
+    <td>
+        {% filter upper|truncatewords:10 %}
+            Un chrétien, un musulman et un boudiste entrent dans un bar. Le barman dit : "c'est une blague ou quoi ?"
+        {% endfilter %}
+    </td>
+    <td>Applique des filtres au bloc entier
+    </td>
+</tr>
+
+
+</table>
+
+<p>Vous pouvez créer vos propres tags, mais nous verrons cela une autre fois.</p>
+
+</body>
+</html>
+

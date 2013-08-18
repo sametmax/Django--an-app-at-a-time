@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+           Inclusion dans les templates
+    </title>
+
+</head>
+<body>
+
+
+<p><a href="..">Retour</a></p>
+
+<h1>Inclusion dans les templates</h1>
+
+<p>Les inclusions ne sont PAS le mécanisme principal pour réutiliser des templates en Django. Vous devez utiliser l'héritage avant tout.</p>
+
+<p>Les inclusions sont à utiliser uniquement quand vous avez un petit morceau d'HTML que vous avez besoin de réutiliser à plusieurs endroits, mais pas très souvent.</p>
+
+<p>Cela fonctionne comme on s'y attend :</p>
+
+<pre>
+&lt;div&gt;
+    { % include 'app6_included.html' % }
+&lt;/div&gt;
+
+&lt;div&gt;
+    { % include 'app6_included.html' % }
+&lt;/div&gt;
+</pre>
+
+produira :
+
+<div>
+    {% include 'app6_included.html' %}
+</div>
+
+<div>
+    {% include 'app6_included.html' %}
+</div>
+
+<p>ATTENTION : le template inclus et le template incluant ont leurs rendus effectués séparément, ensuite seulement ils sont fusionnés. Cela signifie que vous ne pouvez pas accéder aux variables déclarées dans l'un et l'autre. Si vous en avez besoin, utilisez <code>with</code> :</p>
+
+<code>{ % include 'app6_included.html' with variable=value % }</code>
+
+<p>Les inclusions et l'héritage peuvent être utilisés ensemble sans problème.</p>
+
+</body>
+</html>
+
