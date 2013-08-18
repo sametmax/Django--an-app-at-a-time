@@ -1,4 +1,4 @@
-"settings.py" contient les paramètres de votre projet Django. C'est un module python ordinaire, que vous pouvez importer et utiliser comme n'import quel autre module.
+"settings.py" contient les paramètres de votre projet Django. C'est un module python ordinaire, que vous pouvez importer et utiliser comme n'importe quel autre module.
 
 "urls.py" contient le code qui associe des urls avec des apps. Grâce à ce fichier, quand quelqu'un va sur votre site sur une certaine url, c'est le code de la bonne app qui s'exécute.
 
