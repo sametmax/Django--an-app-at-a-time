@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    When you start having a lot a routes, you can give them names, and
+    When you start having a lot of routes, you can give them names, and
     refer to this name later, when you want a link for them.
 
     Here we will use the SAME urls and views as in the previous app,
@@ -28,7 +28,7 @@ urlpatterns = patterns('',
     url(r'app2_included/', include('app2_hello_again.urls'), name="include"),
 
     # In Python it's allowed to move parameters on another line, so we use
-    # this to stack them so it doesn't make a loooooooooooon line.
+    # this to stack them so it doesn't make a loooooooooooong line.
     url(r'(?P<name>\w+)/(?P<prefix>\w+)/$',
         'app3_basic_routing.views.hello',
         name='hello_prefix'),
