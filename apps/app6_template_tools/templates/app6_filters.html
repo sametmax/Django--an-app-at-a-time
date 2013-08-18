@@ -48,7 +48,7 @@
     <td>{{ quote }}</td>
     <td><code> quote|title </code></td>
     <td>{{ quote|title }}</td>
-    <td>See also : <code>lower</code>, <code>upper</code>...</td>
+    <td>See also: <code>lower</code>, <code>upper</code>...</td>
 </tr>
 <tr>
     <td>{{ html }}</td>
@@ -102,13 +102,13 @@
     <td>{{ random_people }}  <small><em>[<a href=".">reload</a> to change values]</em></small></td>
     <td><code>There are { { random_people|length } } person{ { random_people|length|pluralize:'s' } }</code></td>
     <td>There are {{ random_people|length }} person{{ random_people|length|pluralize:'s' }}</td>
-    <td>Filters play well together : here <code>length</code> give us the numer of elements in the tuple, and <code>pluralize</code> decide to add an <code>'s'</code> or not.</td>
+    <td>Filters play well together : here <code>length</code> give us the number of elements in the tuple, and <code>pluralize</code> decide to add an <code>'s'</code> or not.</td>
 </tr>
 <tr>
     <td>{{ money }}</td>
     <td><code>{ % load humanize % }{ { money|intcomma } }</code></td>
     <td>{% load humanize %}{{ money|intcomma }}</td>
-    <td>Some filters require you import a module first with by calling <code>load</code>. If you don't do so, you'll have an error telling you the tag doesn't exist. <code>humanize</code> requires the app <code>'django.contrib.humanize'</code> to be added to <code>INSTALLED_APPS</code> in the settings. It is not the case by default.</td>
+    <td>Some filters require you import a module first with by calling <code>load</code>. If you don't do so, you'll have an error telling you the filter doesn't exist. <code>humanize</code> requires the app <code>'django.contrib.humanize'</code> to be added to <code>INSTALLED_APPS</code> in the settings. It is not the case by default.</td>
 </tr>
 </table>
 
