@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+           Template includes
+    </title>
+
+</head>
+<body>
+
+
+<p><a href="..">Back</a></p>
+
+<h1>Template includes</h1>
+
+<p>Includes are NOT the main way for template reuse in Django. You should use template inheritance first.</p>
+
+<p>Includes are only used when you got a small piece of HTML that you know you will need several times, but not that often.</p>
+
+<p>It works the way you expect :</p>
+
+<pre>
+&lt;div&gt;
+    { % include 'app6_included.html' % }
+&lt;/div&gt;
+
+&lt;div&gt;
+    { % include 'app6_included.html' % }
+&lt;/div&gt;
+</pre>
+
+will produce :
+
+<div>
+    {% include 'app6_included.html' %}
+</div>
+
+<div>
+    {% include 'app6_included.html' %}
+</div>
+
+<p>WARNING : the included template and the including template are rendered separatly, THEN merged. This means you can't access variables from one in another. If you need to do so, use <code>with</code> :</p>
+
+<code>{ % include 'app6_included.html' with variable=value % }</code>
+
+<p>Includes and inheritance can be used together without any problem.</p>
+
+</body>
+</html>
+

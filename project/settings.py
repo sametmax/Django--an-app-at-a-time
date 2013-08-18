@@ -210,6 +210,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',  # set a message and display it to the user
     'django.contrib.staticfiles', # serve static file in dev mode
     'django.contrib.admin', # an administration tool for the database
+    'django.contrib.humanize', # tools to print values in a human readable way
 
     # our apps (their are just regular importable Python modules)
 
@@ -218,6 +219,7 @@ INSTALLED_APPS = (
     'app3_basic_routing',
     'app4_links',
     'app5_get_post_and_cookies',
+    'app6_template_tools',
 
     # ignore this, it's the app to display the listing of other apps
     'ignore_me',

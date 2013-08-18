@@ -1,0 +1,86 @@
+{% extends 'app6_base.html' %}
+
+
+
+
+Content outsides block is NOT rendered. This will NOT appear.
+
+
+
+
+
+{# This block will fill in the block 'content' in the parent #}
+{% block content %}
+
+<p><a href="..">Back</a></p>
+
+<h1>Template inheritance</h1>
+
+<strong><big>/!\ Look at the source first /!\</big></strong>
+
+<p>Inheritance is a form of template reuse. But it is NOT an include.</p>
+
+<p><strong>In this exemple, the view renders THIS (<em>app6_inheritance.html</em>) template.</strong></p>
+
+<p>But this template inherits from another template named <em>app6_base.html</em>.</p>
+
+<p>It works this way :</p>
+
+<ol>
+    <li>This templates (<em>app6_inheritance.html</em>) says which template it inherits from using the <code>extends</code> tag.</li>
+    <li>This templates define named blocks of content using the <code>block</code> tag.</li>
+    <li>When the view renders the template, it wraps this (<em>app6_inheritance.html</em>) template in the parent (<em>app6_base.html</em>), filling the parent blocks with the child blocks.</li>
+</ol>
+
+<p>Schematically, it works this way :</p>
+
+<p>Child (<em>app6_inheritance.html</em>) :</p>
+
+<pre>
+         _____
+        |_____|
+
+         _____
+        |     |
+        |     |
+        |_____|
+</pre>
+
+<p>when this is rendered, it is wrapped IN the parent (<em>app6_base.html</em>) :</p>
+
+<pre>
+    ................
+    .     _____    .
+    .    |_____|   .
+    .              .
+    .     _____    .
+    .    |     |   .
+    .    |     |   .
+    .    |_____|   .
+    .              .
+    ................
+</pre>
+
+<p>It works backward, compared to an include. In a include, you would render the parent, and insert the child.</p>
+
+<p>You don't need to fill all the blocks of the parent (which can have default values), and you can inherit from and a child, making complex inheritance possible.</p>
+
+{% endblock %}
+
+
+{# Block order does NOT matter #}
+
+
+
+
+{# This block will fill in the block 'title' in the parent #}
+{% block title %}
+    Template inheritance
+{% endblock %}
+
+
+
+
+
+{# An empty block will prevent the parent matching block from rendering. #}
+{% block useless %}{% endblock %}

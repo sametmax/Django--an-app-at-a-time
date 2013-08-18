@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        {# If this block is not filled by the child, its content is used. #}
+        {% block title %}
+            Django, an app at a time
+        {% endblock %}
+    </title>
+
+</head>
+<body>
+
+{% block useless %}
+<blink>This is a useless block.</blink>
+{% endblock %}
+
+{# Usually, base template have a "content" block to be filled with the main content #}
+{% block content %}
+
+{% endblock %}
+
+
+</body>
+</html>
+

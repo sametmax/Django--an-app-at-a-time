@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Template tags
+    </title>
+
+    <style type="text/css">
+        table {border-collapse: collapse; border: 3px solid #ccc;}
+        td, th {height: 26px;  border: 3px solid #ccc; padding:1em; text-align:center;}
+        dl, ul, pre, code {text-align: left;}
+        dt { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<p><a href="..">Back</a></p>
+
+<h1>Template tags</h1>
+
+<p>A tag is a limited function wrapped by a special code, so it can be called in a Django template. The syntax is:</p>
+
+<code>{ % tags value_as_variable_name 'value2' param_name='param_value' % }</code>
+
+<p>You already have encoutered one tag : <code>{ % url % }</code>. There are many other tags, and <strong>there are mostly used for logic handling</strong>.</p>
+
+<p>Here are some common examples :</p>
+
+<table>
+<tr>
+    <th>Variable value</th>
+    <th>Tag</th>
+    <th>Result</th>
+    <th>Note</th>
+</tr>
+<tr>
+    <td>N/A</td>
+    <td> <code>now "jS F Y H:i"</code> </td>
+    <td>{% now "jS F Y H:i" %}</td>
+    <td>Some tags produce values. This one produces output today's date formated the way you want.</td>
+</tr>
+<tr>
+    <td>{{ answer }} <small><em>[<a href=".">reload</a> to change values]</em></small></td>
+    <td>
+    <pre>
+{ % if answer % }
+    Ok
+{ % else % }
+    Not Ok
+{ % endif % }
+    </pre>
+    </td>
+    <td>
+        {% if answer %}
+            Ok
+        {% else %}
+            Not Ok
+        {% endif %}
+    </td>
+    <td>Tags can be in several parts. In that cas they MUST have a closing part, named 'endsomething'. Between parts, you can put any HTML you want, other tags or even variables with filters.</td>
+</tr>
+<tr>
+    <td>{{ number }} and {{ answer }} <small><em>[<a href=".">reload</a> to change values]</em></small></td>
+    <td>
+    <code>
+:{ % if number > 1 and answer % }======={ % endif % })
+    </code>
+    </td>
+    <td>
+        :{% if number > 1 and answer %}======={% endif %})
+    </td>
+    <td><code>else</code> is optional. You can use simple conditions as well.</td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    &lt;dt&gt;Persons :&lt;/dt&gt;
+    { % for person in people % }
+        &lt;dd&gt;{ { person } }&lt;/dd&gt;
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            <dt>Persons :</dt>
+            {% for person in people %}
+                <dd>{{ person }}</dd>
+            {% endfor %}
+        </dl>
+    </td>
+    <td>You can use the for loop as you are used to. Just don't forget <code>endfor</code>.</td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    { % for team, persons in teams.items % }
+        &lt;dt&gt;{ { team } } :&lt;/dt&gt;
+        { % for person in persons % }
+            &lt;dd&gt;{ { person } }&lt;/dd&gt;
+        { % endfor % }
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            {% for team, persons in teams.items %}
+                <dt>{{ team }}</dt>
+                {% for person in persons %}
+                    <dd>{{ person }}</dd>
+                {% endfor %}
+            {% endfor %}
+        </dl>
+    </td>
+    <td>If you need to use a method, omit the parenthesis. Like a normal loop, you can nest as many loops as you need and use unpacking.</td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+&lt;dl&gt;
+    &lt;dt&gt;Team A&lt;/dt&gt;
+    { % for person in teams.A % }
+        &lt;dd&gt;{ { forloop.counter } } - { { person } }&lt;/dd&gt;
+    { % endfor % }
+&lt;/dl&gt;
+    </pre>
+    </td>
+    <td>
+        <dl>
+            <dt>Team A</dt>
+            {% for person in teams.A %}
+                <dd>{{ forloop.counter }} - {{ person }}</dd>
+            {% endfor %}
+        </dl>
+    </td>
+    <td><p>If you need to use a <code>[]</code>, just use a dot. <code>team['A']</code> becomes <code>team.A</code> and <code>team['A'][0]</code> becomes <code>team.A.0</code>. You also have access to a variable named <code>forloop</code> automatically created by Django in any <code>for</code> block. Its attributes contains useful informations such as :</p>
+<ul><li><code>forloop.counter</code>: a 1-indexed counter</li>
+<li><code>forloop.first</code>: <code>True</code> if <code>forloop.counter == 1</code></li>
+<li><code>forloop.last</code>: <code>True</code> if we are at the last element of the loop</li>
+<li><code>forloop.parentloop</code>: the loop "above" the current one in case you nested loops. </li></ul>
+    </td>
+</tr>
+
+<tr>
+    <td>{{ people }}</td>
+    <td>
+    <pre>
+{ % with first_element=teams.A.0|upper % }
+        &lt;p&gt;'{ { first_element } }'' is { { first_element|length } } characters long&lt;/p&gt;
+{ % endwith % }
+    </pre>
+    </td>
+    <td>
+        <dl>
+            {% with first_element=teams.A.0|upper %}
+                    <p>'{{ first_element }}'' is {{ first_element|length }} characters long</p>
+            {% endwith %}
+        </dl>
+    </td>
+    <td><code>with</code> as nothing to do with the Python keyword with the same name. It's a way to create a temporary variable. Here we make <code>first_element = teams['A'][0].upper()</code>, so we can use the result several times in the block. Note that filters can be used after loop ups, and even in tags.
+    </td>
+</tr>
+
+<tr>
+    <td>A christian, a muslim and a buddhist walk into a bar. The barman says : "is that a joke ?"</td>
+    <td>
+    <pre>
+{ % filter upper|truncatewords:10 % }
+    A christian, a muslim and a buddhist walk into a bar. The barman says : "is that a joke ?"
+{ % endfilter % }
+    </pre>
+    </td>
+    <td>
+        {% filter upper|truncatewords:10 %}
+            A christian, a muslim and a buddhist walk into a bar. The barman says : "is that a joke ?"
+        {% endfilter %}
+    </td>
+    <td>This applies filters to an entire block.
+    </td>
+</tr>
+
+
+</table>
+
+<p>You can actually create your own tags, but we'll see that another time.</p>
+
+</body>
+</html>
+

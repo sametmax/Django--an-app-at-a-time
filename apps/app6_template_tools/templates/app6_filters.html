@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Template filters
+    </title>
+
+    <style type="text/css">
+        table {border-collapse: collapse; border: 3px solid #ccc;}
+        td, th {height: 26px;  border: 3px solid #ccc; padding:1em; text-align:center;}
+    </style>
+</head>
+<body>
+
+<p><a href="..">Back</a></p>
+
+<h1>Template filters</h1>
+
+<p>A filter is a limited function wrapped by a special code, so it can be called in a Django template. The syntax is:</p>
+
+<code>{ { variable_name|filter_name:'args' } }</code>
+
+<p>There are many filters, and <strong>there are mostly used for transforming the content of a variable</strong>, most often to format it.</p>
+
+<p>Here are some common examples:</p>
+
+<table>
+<tr>
+    <th>Variable value</th>
+    <th>Filter</th>
+    <th>Result</th>
+    <th>Note</th>
+</tr>
+<tr>
+    <td>{{ number }}  <small><em>[<a href=".">reload</a> to change values]</em></small></td>
+    <td><code> number|add:'-1' </code></td>
+    <td>{{ number|add:'-1' }}</td>
+    <td>Positives and negatives values are allowed</td>
+</tr>
+<tr>
+    <td>{{ today }}</td>
+    <td><code> today|date:"D d M Y" </code></td>
+    <td>{{ today|date:"D d M Y" }}</td>
+    <td>You also have shortcuts formats such as <code>SHORT_DATE_FORMAT</code> for the most used formats</td>
+</tr>
+<tr>
+    <td>{{ quote }}</td>
+    <td><code> quote|title </code></td>
+    <td>{{ quote|title }}</td>
+    <td>See also : <code>lower</code>, <code>upper</code>...</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td> <code>html</code> </td>
+    <td>{{ html }}</td>
+    <td>HTML is automatically escaped</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td><code> html|safe </code></td>
+    <td>{{ html|safe }}</td>
+    <td>Only do this on HTML you trust</td>
+</tr>
+<tr>
+    <td>{{ html }}</td>
+    <td><code> html|removetags:'a script style img' </code></td>
+    <td>{{ html|removetags:'a script style img' }}</td>
+    <td>See also: <code>striptags</code> to remove all tags.</td>
+</tr>
+<tr>
+    <td>{{ answer }}</td>
+    <td><code> answer|yesno:'Ok,Not Ok,Err...' </code></td>
+    <td>{{ answer|yesno:'Ok,Not Ok,Err...' }}</td>
+    <td>See also: <code>default</code>, to set a default value is it's False or None</td>
+</tr>
+<tr>
+    <td>{{ url }}</td>
+    <td><code> url|urlizetrunc:'30' </code></td>
+    <td>{{ url|urlizetrunc:'30' }}</td>
+    <td>See also: <code>urllize</code>, which doesn't truncate</td>
+</tr>
+<tr>
+    <td>{{ phrase }}</td>
+    <td><code> urlphrase|truncatewords:'15' </code></td>
+    <td>{{ phrase|truncatewords:'15' }}</td>
+    <td>See also: <code>truncatechars</code>, which truncate characters</td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td><code> people|join:', ' </code></td>
+    <td>{{ people|join:', ' }}</td>
+    <td></td>
+</tr>
+<tr>
+    <td>{{ people }}</td>
+    <td><code> &lt;ul&gt; people|slice:'2:'|unordered_list &lt;/ul&gt;</code></td>
+    <td><ul>{{ people|slice:'2:'|unordered_list }}</ul></td>
+    <td>You can chain as many filters as you want. Here we use <code>slice</code>, that mimic the <code>[]</code> syntax in Python for slicing, and <code>unordered_list</code>, that allow you to be lazy avoid writting lists manually.</td>
+</tr>
+<tr>
+    <td>{{ random_people }}  <small><em>[<a href=".">reload</a> to change values]</em></small></td>
+    <td><code>There are { { random_people|length } } person{ { random_people|length|pluralize:'s' } }</code></td>
+    <td>There are {{ random_people|length }} person{{ random_people|length|pluralize:'s' }}</td>
+    <td>Filters play well together : here <code>length</code> give us the numer of elements in the tuple, and <code>pluralize</code> decide to add an <code>'s'</code> or not.</td>
+</tr>
+<tr>
+    <td>{{ money }}</td>
+    <td><code>{ % load humanize % }{ { money|intcomma } }</code></td>
+    <td>{% load humanize %}{{ money|intcomma }}</td>
+    <td>Some filters require you import a module first with by calling <code>load</code>. If you don't do so, you'll have an error telling you the tag doesn't exist. <code>humanize</code> requires the app <code>'django.contrib.humanize'</code> to be added to <code>INSTALLED_APPS</code> in the settings. It is not the case by default.</td>
+</tr>
+</table>
+
+<p>You can actually create your own filters, but we'll see that another time.</p>
+
+</body>
+</html>
+
