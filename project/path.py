@@ -2,7 +2,7 @@
 
 
 """
-    Ce module contient les chemins des dossiers du projets, créés dynamiquement.
+    Ce module contient les chemins des dossiers du projet, créés dynamiquement.
 
     Tous les chemins sont absolus, sans liens, et en unicode.
 
@@ -19,13 +19,13 @@ import tempfile
 
 # Cette partie est un peu compliquée et n'est pas forcément nécessaire
 # à votre projet, mais elle rend le projet complètement portable car tous
-# les chemins de tous les dossiers sont crées dynamiquement au lieu
+# les chemins de tous les dossiers sont créés dynamiquement au lieu
 # d'être écris en dur.
 
 # On récupère le chemin du fichier settings.py (la variable __FILE__ contient
 # automatiquement le chemin du fichier en cours) et on transforme la chaîne
-# en unicode au cas où il y ait des accents dans ce nom
-# (sys.getfilesystemencoding() nous donnes l'encoding du système de fichier
+# en unicode au cas où il y a des accents dans ce nom
+# (sys.getfilesystemencoding() nous donne l'encoding du système de fichier
 # qui peut être différent sous Windows, Mac ou Unix)
 FS_ENCODING = sys.getfilesystemencoding()
 THIS_FILE = __file__.decode(FS_ENCODING)
@@ -50,7 +50,7 @@ TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
 #     "from apps.app1_hello.views import hello" ou "import django" à la place
 #     de "from libs import django"
 #
-# Quand vous avez un petit projet, vous pouvez évitez cela et mettre toutes
+# Quand vous avez un petit projet, vous pouvez éviter cela et mettre toutes
 # les apps dans le dossier racine comme dans le tutorial Django officiel, mais
 # dans un gros projet avec beaucoup d'apps, on les met généralement toutes
 # dans un dossier "apps" comme nous venons de faire, donc c'est une bonne

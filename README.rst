@@ -28,7 +28,7 @@ Contenu
 =================
 
 - "apps" : contient toutes les applications, ordonnées par complexité et dépendances. C'est ce que vous voulez lire.
-- "project" : le projet Django lui-même, contenant les paramètres et la définition principale des URL. Vous devriez y jeter un oeil de temps à autres pour remettre les applications dans leur contexte, et également apprendre quelques astuces.
+- "project" : le projet Django lui-même, contenant les paramètres et la définition principale des URL. Vous devriez y jeter un oeil de temps à autre pour remettre les applications dans leur contexte, et également apprendre quelques astuces.
 - "libs" : les dépendances telles que Django qu'il faudrait normalement installer. Inutile de regarder là-dedans, mais vous pouvez si vous commencez à vous sentir à l'aise avec Django.
 - "libs/ignore_me" : l'app qui liste toutes les apps, et la page principale du projet. Vous pouvez l'ignorer, ce n'est pas très intéressant.
 - "manage.py" : la commande qui permet d'interagir avec le projet Django. Celle-ci a été quelque peu modifiée, donc ne la remplacez pas.
