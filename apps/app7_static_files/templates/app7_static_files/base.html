@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Flexible Layout
+    </title>
+    {% comment %}
+        It's very common to make blocks for CSS and Javascript tags,
+        and a separate block for anything additional. This way,
+        child can define thir own style or behavior, override them,
+        add to them, etc.
+    {% endcomment %}
+    {% block style %}
+        <link rel="stylesheet" href="{% static 'css/app7_style.css' %}">
+    {% endblock %}
+
+    {% block head %}
+
+    {% endblock %}
+
+</head>
+<body>
+
+
+{% block content %}
+
+{% endblock %}
+
+
+</body>
+
+    {% block javascript %}
+
+    {% endblock %}
+
+    {% block bottom %}
+
+    {% endblock %}
+
+</html>
+

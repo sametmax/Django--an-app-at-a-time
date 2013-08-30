@@ -1,0 +1,60 @@
+{% comment %}
+    You need to load the static lib before using the 'static' tag.
+
+    'django.contrib.staticfiles' should also be in settings.INSTALLED_APPS.
+{% endcomment %}
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Basic static files
+    </title>
+
+    {% comment %}
+        The 'static' tag tag a relative path to a static file (any JS, CSS,
+        image, etc) and ouput an absolute path.
+
+        In it's simple form, just put all you files in a directory named
+        'static' in each app and give a relative path to this file FROM
+        that directory.
+
+        In developpement mode (when running ./manage.py runserver), all the
+        files in all the 'static' directories in all apps are discovered and
+        served automatically.
+
+        Just like with template, you can create directories and subdirectories
+        to organize you files.
+
+        E.G : you could put this in app7_static_file/css/style.css.
+
+        Just like with templates, another app can override the static files
+        from this app by using the same path and name.
+
+        One last thing : the default absolute URL prefix for every static file
+        is the one specified in settings.STATIC_URL, which default to
+        '/static/'. This explains why {% static 'css/app7_style.css' %}
+        will result in /static/css/app7_style.css.
+    {% endcomment %}
+    <link rel="stylesheet" href="{% static 'css/app7_style.css' %}">
+
+</head>
+<body>
+
+<p><a href="..">Back</a></p>
+
+<h1>Basics</h1>
+
+<pre>
+        ^
+        |
+        |
+</pre>
+
+<p>We set the title in red using a CSS file. Look at the generated source THEN the template.</p>
+
+</body>
+</html>
+

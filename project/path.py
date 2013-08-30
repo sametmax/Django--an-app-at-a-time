@@ -20,8 +20,8 @@ import os
 import tempfile
 
 # This part is a bit complicated and is not mandatory for your project, but
-# it render it completly portable since all directory paths are dyncamically
-# generated instead of bein hard coded.
+# it renders it completly portable since all directory paths are dyncamically
+# generated instead of being hard coded.
 
 # We get the 'settings.py' file path (the __FILE__ variable contains
 # automatically the path of the current file) and we transform this string

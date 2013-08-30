@@ -1,0 +1,102 @@
+{% extends "app7_static_files/flexible_base.html" %}
+
+{% load static %}
+
+{% block style %}
+    <link rel="stylesheet" href="{% static 'css/app7_green_style.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<p> <a href=".." >Back</a> </p>
+
+<h1>Static files in production</h1>
+
+<p>
+You would do it exactly the same way, except you won't be running <code>./manage.py runserver</code> anymore.</p>
+
+<p>This means <strong>your static files will NOT be discovered automatically : they must be served by a production ready server</strong> such as Apache, Nginx, Lighttpd or a CDN.</p>
+
+<p>Since this is not a tutorial, I will not go into details on how you can do each, but only the most common way.</p>
+
+<h2>Put all static files in the same dir</h2>
+
+<p>The classic configuration is to have <code>settings.STATIC_ROOT</code> pointing to a directory where Django should copy all static files.</p>
+
+<p>Then you run <code>./manage.py collectstatic</code>.</p>
+
+<p>It will copy them all in there.</p>
+
+<p><strong>Try it.</strong> Run the command, then look at the files in <code>settings.STATIC_ROOT</code> (currently : <em>{{ settings.STATIC_ROOT }}</em>).</p>
+
+<p>There will be a lot of files in there : all files from all 'static' directories from all apps are copied automatically, including the numerous CSS/JS files of the Django 'admin' app.</p>
+
+<h2>Serve static files</h2>
+
+<p>It will be then your job to create a configuration file for your server so it serves the content of <code>settings.STATIC_ROOT</code> when a request is made to <code>settings.STATIC_URL</code> (currently : <em>{{ settings.STATIC_URL }}</em>)</p>
+
+<p>I like to use Nginx to serve Django apps. Here is what a minimalist Nginx configuration file could look like :</p>
+
+<pre>
+server {
+        listen      80;
+
+        # Serving static files.
+        # If the server ask for http://site.com/static/anything, it will
+        # match this and servce 'anything' from the directory containing
+        # all static files.
+        # Django is never called for these files.
+        location ~* ^{{ settings.STATIC_URL }} {
+            root  {{ settings.STATIC_ROOT }};
+        }
+
+        # Passing other requests to Django. Not the topic of this app :-)
+        location / {
+            proxy_pass http://127.0.0.1:8000;
+        }
+}
+
+</pre>
+
+A similair Apache configuration file would be:
+
+<pre>
+&lt;VirtualHost *:80&gt;
+
+    # Serving static files.
+    # If the server ask for http://site.com/static/anything, it will
+    # match this and servce 'anything' from the directory containing
+    # all static files.
+    # Apache doesn't like the leading slash on aliases, so don't do
+    # "{{ STRIPPED_STATIC_URL }}/"
+    Alias {{ STRIPPED_STATIC_URL }} {{ settings.STATIC_ROOT }}
+
+    &lt;Directory {{ settings.STATIC_ROOT }}&gt;
+        Order allow,deny
+        Allow from all
+    &lt;/Directory&gt;
+
+    # Passing other requests to Django. Not the topic of this app :-)
+    WSGIScriptAlias / {{ settings.PROJECT_DIR }}/wsgi.py
+
+    &lt;Directory {{ settings.PROJECT_DIR }}&gt;
+        Order allow,deny
+        Allow from all
+    &lt;/Directory&gt;
+
+&lt;/VirtualHost&gt;
+</pre>
+
+If you don't have access to Apache configuration but can set rewrite rules in a .httpacess files, you can do something like this :
+
+<pre>AddHandler fcgid-script .fcgi
+RewriteEngine On
+# Be careful with this, settings.STATIC_URL should match any subpath
+# of /path/to/apache/root/dir/ since we don't serve it, we REWRITE it.
+RewriteRule {{ settings.STATIC_URL }} /path/to/apache/root/dir/{{ STRIPPED_STATIC_URL }}
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ site.fcgi/$1 [QSA,L]</pre>
+
+<p>I wrote the paths using template variables, but in the real file, they are hard coded. This is why it's common to generated configuration files using template files.</p>
+
+{% endblock %}

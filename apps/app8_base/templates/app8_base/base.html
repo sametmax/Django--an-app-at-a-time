@@ -1,0 +1,51 @@
+{% comment %}
+    This is the base template we are going to reuse from now for next apps.
+    It features the most useful blocks, and a default CSS style.
+{% endcomment %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        {% block title %}
+            Django, an app at a time
+        {% endblock %}
+    </title>
+    {% block style %}
+        {% comment %}
+            The default CSS will be using the bootstrap CSS framework.
+            This will save a lot of work for us and still gives us a nice
+            looking style.
+        {% endcomment %}
+        {% load static %}
+        <link rel="stylesheet" href="{% static 'app8_base/css/bootstrap.min.css' %}">
+        <link rel="stylesheet" href="{% static 'app8_base/css/style.css' %}">
+    {% endblock %}
+
+    {% block head %}
+    {% endblock %}
+
+</head>
+<body>
+<div class="container">
+
+{% block header %}
+{% endblock %}
+
+{% block content %}
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
+
+</div>
+</body>
+
+{% block javascript %}
+{% endblock %}
+
+{% block bottom %}
+{% endblock %}
+
+</html>
+
