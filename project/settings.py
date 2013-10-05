@@ -10,19 +10,19 @@
 # de la configuration originale de Django n'est pas modifiée, donc vous devrez  #
 # vous référer à global_settings.py pour connaitre les autres valeurs.          #
 #                                                                               #
-# D'autres valeurs sont à destinations d'autres apps Django.                    #
+# D'autres valeurs sont à destination d'autres apps Django.                    #
 #                                                                               #
 # Enfin, quelques valeurs sont celles que nous avons créées pour nos propres    #
 # apps Django.                                                                  #
 #                                                                               #
-# SOUVENEZ-VOUS : c'est juste un fichier Python ordinnaire, ce qui signifie que #
+# SOUVENEZ-VOUS : c'est juste un fichier Python ordinaire, ce qui signifie que  #
 # vous pouvez mettre n'importe quel code Python dedans.                         #
 #                                                                               #
 # NOTE : le but de ce projet est de vous montrer comment faire des choses       #
 # dans les apps, pas comment déployer Django. De ce fait, le contenu des        #
 # paramètres et leurs organisations sont orientés dans ce but et ne reflètent   #
 # pas ce que vous devriez faire en production.                                  #
-# Je mettrais des notes là où il faudra faire attention, et la première         #
+# Je mettrai des notes là où il faudra faire attention, et la première          #
 # d'entre elles est : "Vous devriez avoir plusieurs fichiers de settings        #
 # dans un vrai projet pour séparer la produciton, la préproduction et le        #
 # développement."                                                               #
@@ -38,14 +38,14 @@ from __future__ import unicode_literals
 
 import os
 
-# On récupère les chemin de ces dossiers depuis le module path.
+# On récupère les chemins de ces dossiers depuis le module path.
 # Le fichier path.py est un quelque chose que nous codons nous même, il n'est pas
 # fournit avec Django, mais il est très pratique pour ne pas avoir à écrire
 # ces chemins en dur.
 from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
 
-# Affiche des message d'erreurs sur la page Web si quelque chose plante.
+# Affiche des messages d'erreurs sur la page Web si quelque chose plante.
 # ATTENTION : la valeur par défaut est True, vous devriez toujours la mettre
 # sur False en production.
 DEBUG = True
@@ -60,7 +60,7 @@ MANAGERS = ADMINS
 
 # La configuration de la base de données est un gros dictionnaire. On
 # configure postgresql, mysql, sqlite ou oracle au même endroit, et on peut
-# avoir plusieurs base de données configurées pour un projet (une par clé du
+# avoir plusieurs bases de données configurées pour un projet (une par clé du
 # dictionnaire, la clé étant le nom de la base de données). Vous devez au
 # moins avoir une base de données nommée "default".
 # Nous allons utiliser sqlite car cela fonctionne sans plus de configuration.
@@ -71,10 +71,10 @@ DATABASES = {
     }
 }
 # Si vous installez votre propre backend, vous pouvez aussi utiliser des
-# base de données plus exotiques telles que MSAccess ou Firebird
+# bases de données plus exotiques telles que MSAccess ou Firebird
 
 
-# Listez ici les URL depuis lesquelles vous souhaitez que votre site soit
+# Listez ici les URLs depuis lesquelles vous souhaitez que votre site soit
 # accessible.
 # Ex : si vous voulez que votre site soit accessible depuis jaimelesgiraffes.com
 # vous devriez le mettre ici.
@@ -85,7 +85,7 @@ ALLOWED_HOSTS = [
 
 # Vous pouvez choisir le fuseau horaire de votre site. Si vous mettez None,
 # il sera configuré pour utiliser celui de votre machine. Je recommande
-# cela, mais à la condition que l'heure de votre serveur soit réglé sur UTC
+# cela, mais à la condition que l'heure de votre serveur soit réglée sur UTC
 # (ce qui est recommandé).
 TIME_ZONE = None
 
@@ -99,11 +99,11 @@ LANGUAGE_CODE = 'fr-fr'
 SITE_ID = 1
 
 # Voulez-vous que le texte soit traductible dans d'autres langues ? Si non,
-# vous pouvez mettre False pour gagnez un peu de perf.
+# vous pouvez mettre False pour gagner un peu de perf.
 USE_I18N = True
 
 # Voulez-vous que Django formate les dates, l'argent et les nombres selon
-# culture / langue en cours ? Si non, vous pouvez mettre False pour gagnez un
+# culture / langue en cours ? Si non, vous pouvez mettre False pour gagner un
 # peu de perf.
 USE_L10N = True
 
@@ -115,8 +115,8 @@ USE_TZ = False
 
 
 # Chemin absolu du dossier qui va contenir les fichiers uploadés par les
-# utilisateur.
-# # Exemple: "/var/www/example.com/media/"
+# utilisateurs.
+# # Exemple : "/var/www/example.com/media/"
 #
 # Ne sera probablement jamais utilisé par ce projet, mais je le laisse pour
 # que vous puissiez voir une manière de faire. Le dossier n'existe pas pour
@@ -129,7 +129,7 @@ MEDIA_ROOT = os.path.join(ROOT_DIR, 'var', 'media')
 MEDIA_URL = "/media/"
 
 # Chemin absolu vers le dossier dans lequel les fichiers statiques seront
-# collectés. Ne metez rien dans ce dossier vous-même, stockez vos fichiers
+# collectés. Ne mettez rien dans ce dossier vous-même, stockez vos fichiers
 # statiques dans chaque dossier "static" de chaque app et dans STATICFILES_DIRS.
 # # Exemple: "/var/www/example.com/static/"
 #
@@ -143,14 +143,14 @@ STATIC_ROOT = os.path.join(ROOT_DIR, 'var', 'static')
 STATIC_URL = '/static/'
 
 # Un tuple qui contient des chemins absolus de tous les dossiers que l'on
-# souhaites que Django détecte automatiquement comme contenant des fichiers
+# souhaite que Django détecte automatiquement comme contenant des fichiers
 # statiques (CSS, JS, images...).
 # Chaque dossier 'static' de chaque app est automatiquement ajouté, donc
 # pas la peine de les lister ici.
 STATICFILES_DIRS = (
     # Mettez ici des chaînes comme "/home/html/static" ou "C:/www/django/static".
-    # Utilisez toujours des slash, même sous Windows.
-    # Utilisez des chemins absolus, par relatifs.
+    # Utilisez toujours des slashs, même sous Windows.
+    # Utilisez des chemins absolus, pas relatifs.
 )
 
 # La liste des classes chargées de trouver les fichiers statiques dans divers
@@ -177,7 +177,7 @@ TEMPLATE_LOADERS = (
 )
 
 # Les middlewares sont le mécanisme de Django pour appliquer un traitement à
-# chaque requête. Vous voyez ici les valeurs par défault, mais vous pouvez
+# chaque requête. Vous voyez ici les valeurs par défaut, mais vous pouvez
 # écrire les vôtres. Vous n'aurez pas souvent besoin de jouer avec les
 # middlewares.
 MIDDLEWARE_CLASSES = (
@@ -191,7 +191,7 @@ MIDDLEWARE_CLASSES = (
 )
 
 # Le chemin d'import Python du module principal d'urls. C'est dans celui-ci
-# qu'on déclare la racine de toutes les URLS de toutes les apps.
+# qu'on déclare la racine de toutes les URLs de toutes les apps.
 ROOT_URLCONF = 'project.urls'
 
 # Le chemin d'import du module de l'application WSGI utilisé par Django.
@@ -203,12 +203,12 @@ WSGI_APPLICATION = 'project.wsgi.application'
 TEMPLATE_DIRS = (
     # Mettez des chaînes comme "/home/html/django_templates"
     # ou "C:/www/django/templates".
-    # Utilisez toujours des slash, même sous Windows.
+    # Utilisez toujours des slashs, même sous Windows.
     # Utilisez des chemins absolus, pas relatifs.
 )
 
-# Liste de chemin d'import Python de toutes les applications que Django
-# doit charger au démarrage. Elle contient les applications internes de Django
+# Liste de chemins d'import Python de toutes les applications que Django
+# doit charger au démarrage. Elle contient les applications internes de Django,
 # celles installées en plus avec pip et vos propres applications. Pour Django,
 # c'est la même chose, ce sont juste des modules Python importables.
 # Les applications installées ont leurs fichiers statiques, leurs templates et
