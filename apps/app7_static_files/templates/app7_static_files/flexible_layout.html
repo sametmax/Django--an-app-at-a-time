@@ -1,0 +1,32 @@
+{% extends "app7_static_files/flexible_base.html" %}
+
+{# Il faut le faire dans l'enfant, pas le parent #}
+{% load static %}
+
+{# On override le block parent, ainsi ce bloc apparait à la place de celui par défaut #}
+{% block style %}
+    <link rel="stylesheet" href="{% static 'css/app7_green_style.css' %}">
+{% endblock %}
+
+{# On ajoute un peu de Javascript même si le parent n'en avait pas. Uniquement pour cet enfant. #}
+{% block javascript %}
+        <script src="{% static 'js/app7_alert.js' %}" type="text/javascript"
+                charset="utf-8" async defer></script>
+{% endblock %}
+
+{# On ignore les blocs 'head' et 'bottom'. Les autres peuvent toujours les utiliser #}
+
+{% block content %}
+
+<p><a href="..">Retour</a></p>
+
+<h1>Layout flexible</h1>
+
+<pre>
+        ^
+        |
+        |
+</pre>
+
+<p>La même chose, mais cette fois via l'héritage de template. Regardez à la fois le template enfant et le parent.</p>
+{% endblock %}

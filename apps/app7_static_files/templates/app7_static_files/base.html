@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+        Layout Flexible
+    </title>
+    {% comment %}
+        Il est très commun de faire des blocs pour les tags CSS et Javascript
+        puis un bloc séparé pour tout ce qui est additionnel. AInsi, les
+        enfants peuvent définir leur propre style et comportement, les écraser,
+        ajouter quelque chose, etc.
+    {% endcomment %}
+    {% block style %}
+        <link rel="stylesheet" href="{% static 'css/app7_style.css' %}">
+    {% endblock %}
+
+    {% block head %}
+
+    {% endblock %}
+
+</head>
+<body>
+
+
+{% block content %}
+
+{% endblock %}
+
+
+</body>
+
+    {% block javascript %}
+
+    {% endblock %}
+
+    {% block bottom %}
+
+    {% endblock %}
+
+</html>
+

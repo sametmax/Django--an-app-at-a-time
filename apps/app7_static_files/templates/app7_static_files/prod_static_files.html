@@ -1,0 +1,105 @@
+{% extends "app7_static_files/flexible_base.html" %}
+
+{% load static %}
+
+{% block style %}
+    <link rel="stylesheet" href="{% static 'css/app7_green_style.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<p> <a href=".." >Retour</a> </p>
+
+<h1>Fichiers statiques en production</h1>
+
+
+<p>Il faut faire exactement la même chose, excepté qu'on ne lancera pas <code>./manage.py runserver</code>.</p>
+
+
+<p>Cela veut dire que <strong>vos fichiers statique ne seront PAS découverts automatiquement : ils doivent être servis par un serveur de production</strong> tel que Apache, Nginx, Lighttpd ou un CDN</p>
+
+<p>Étant donné que ceci n'est pas un tutoriel, je ne vais pas rentrer dans les détails de comment tous les faires, mais seulement les moyens les plus courant</p>
+
+<h2>Mettez tous les fichiers dans le même dossier</h2>
+
+<p>La configuration classique est d'avoir <code>settings.STATIC_ROOT</code> pointant sur un dossier vers lequel Django devrait copier tous les fichiers statiques.</p>
+
+<p>Puis on lance <code>./manage.py collectstatic</code>.</p>
+
+<p>Il va les copier tous dedans.</p>
+
+
+<p><strong>Essayez.</strong> Lancez la commande, et rehardez les fichiers dans <code>settings.STATIC_ROOT</code> (actuellement : <em>{{ settings.STATIC_ROOT }}</em>).</p>
+
+<p>Il va y avoir beaucoup de fichiers dedans : tous les fichiers de tous les dossiers 'static' de toutes les apps y sont copier automatiquement, incluant les nombreux fichiers CSS/JS de l'app Django 'admin'.</p>
+
+
+<h2>Servir les fichiers staiques</h2>
+
+<p>C'est maintenant votre job de créer un fichier de configuration pour votre serveur de telle sorte qu'il serve le contenu de <code>settings.STATIC_ROOT</code> quand une requête est faite sur <code>settings.STATIC_URL</code> (actuellement : <em>{{ settings.STATIC_URL }}</em>).</p>
+
+<p>J'aime utiliser Nginx pour servir des apps Django. Voici à quoi peut ressembler un fichier de configuration Nginx minimaliste :</p>
+
+<pre>
+server {
+    listen      80;
+
+    # Sert les fichiers statiques.
+    # Si le client demande http://site.com/{{ settings.STATIC_URL }}/truc,
+    # le serveur va rentrer dans cette clause et servir 'truc' depuis le
+    # dossier qui contient tous les fichiers statiques.
+    # Django n'est jamais appelé pour ces fichiers.
+    location ~* ^{{ settings.STATIC_URL }} {
+        root  {{ settings.STATIC_ROOT }};
+    }
+
+    # Passer les autres requêtes vers Django. Pas le sujet de cette app :-)
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
+
+</pre>
+
+<p>Une configuration similaire pour Apache pourrait être :</p>
+
+<pre>
+&lt;VirtualHost *:80&gt;
+
+    # Sert les fichiers statiques.
+    # Si le client demande http://site.com/{{ settings.STATIC_URL }}/truc,
+    # le serveur va rentrer dans cette clause et servir 'truc' depuis le
+    # dossier qui contient tous les fichiers statiques.
+    # Apache n'aime pas les slash à la fin des Alias. À éviter.
+    # "{{ STRIPPED_STATIC_URL }}/"
+    Alias {{ STRIPPED_STATIC_URL }} {{ settings.STATIC_ROOT }}
+
+    &lt;Directory {{ settings.STATIC_ROOT }}&gt;
+        Order allow,deny
+        Allow from all
+    &lt;/Directory&gt;
+
+    # Passer les autres requêtes vers Django. Pas le sujet de cette app :-)
+    WSGIScriptAlias / {{ settings.PROJECT_DIR }}/wsgi.py
+
+    &lt;Directory {{ settings.PROJECT_DIR }}&gt;
+        Order allow,deny
+        Allow from all
+    &lt;/Directory&gt;
+
+&lt;/VirtualHost&gt;
+</pre>
+
+<p>Si vous n'avez pas accès à la configuration d'Apache mais pouvez écrire des rewrite rules dans un fichier .httpacess, vous pouvez faire quelque chose comme ça :</p>
+
+<pre>AddHandler fcgid-script .fcgi
+RewriteEngine On
+# Attention, settings.STATIC_URL doit correspondre au sous-chemin
+# de /chemin/vers/dossier/racine/apache/ puisqu'on ne le sert pas, on fait un REWRITE
+RewriteRule {{ settings.STATIC_URL }} /chemin/vers/dossier/racine/apache/{{ STRIPPED_STATIC_URL }}
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ site.fcgi/$1 [QSA,L]</pre>
+
+<p>J'ai écris ces chemins en utilisant des variables de template, mais dans la vie réelle, ils sont codés en dur. C'est pourquoi il est courant de générer des fichiers de configuration en utilisant des fichiers de template.</p>
+
+{% endblock %}
