@@ -39,26 +39,26 @@ You would do it exactly the same way, except you won't be running <code>./manage
 
 <pre>
 server {
-        listen      80;
+    listen      80;
 
-        # Serving static files.
-        # If the server ask for http://site.com/static/anything, it will
-        # match this and servce 'anything' from the directory containing
-        # all static files.
-        # Django is never called for these files.
-        location ~* ^{{ settings.STATIC_URL }} {
-            root  {{ settings.STATIC_ROOT }};
-        }
+    # Serving static files.
+    # If the server ask for http://site.com/static/anything, it will
+    # match this and servce 'anything' from the directory containing
+    # all static files.
+    # Django is never called for these files.
+    location ~* ^{{ settings.STATIC_URL }} {
+        root  {{ settings.STATIC_ROOT }};
+    }
 
-        # Passing other requests to Django. Not the topic of this app :-)
-        location / {
-            proxy_pass http://127.0.0.1:8000;
-        }
+    # Passing other requests to Django. Not the topic of this app :-)
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+    }
 }
 
 </pre>
 
-A similair Apache configuration file would be:
+<p>A similar Apache configuration file would be:</p>
 
 <pre>
 &lt;VirtualHost *:80&gt;
@@ -87,7 +87,7 @@ A similair Apache configuration file would be:
 &lt;/VirtualHost&gt;
 </pre>
 
-If you don't have access to Apache configuration but can set rewrite rules in a .httpacess files, you can do something like this :
+<p>If you don't have access to Apache configuration but can set rewrite rules in a .httpacess files, you can do something like this:</p>
 
 <pre>AddHandler fcgid-script .fcgi
 RewriteEngine On

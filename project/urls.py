@@ -25,7 +25,7 @@ urlpatterns = patterns('',
     url(r'^app5/', include('app5_get_post_and_cookies.urls')),
     url(r'^app6/', include('app6_template_tools.urls')),
     url(r'^app7/', include('app7_static_files.urls')),
-    url(r'^app8/', include('app8_base.urls')),
+    #url(r'^app8/', include('app8_base.urls')),
 
     # ignore this, it's the page of the project listing all the apps
     url(r'^$', include('ignore_me.urls')),
