@@ -235,6 +235,7 @@ INSTALLED_APPS = (
     'app5_get_post_and_cookies',
     'app6_template_tools',
     'app7_static_files',
+    'app8_base',
 
     # vous pouvez ignorer cela, c'est l'app qui liste les autres apps
     'ignore_me',
