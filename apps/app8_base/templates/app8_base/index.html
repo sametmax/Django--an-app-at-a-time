@@ -26,13 +26,14 @@
 <header class="page-header">
     <p><a href="/">Home</a></p>
 
-    <h1>{{ title }}</h1>
+    {# 'safe' évite l'échapement automatique du HTML #}
+    <h1>{{ title|safe }}</h1>
 </header>
 
 
 
 {% if header %}
-    <p>{{ header }}</p>
+    <p>{{ header|safe }}</p>
 {% endif %}
 
 {% endblock %}
@@ -53,7 +54,7 @@
 {% block footer %}
 
 {% if footer %}
-    <p>{{ footer }}</p>
+    <p>{{ footer|safe }}</p>
 {% endif %}
 
 {% endblock %}
