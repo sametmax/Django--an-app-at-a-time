@@ -39,7 +39,7 @@ def hello(request):
 # render() mélange le template et son contexte et fabrique la page Web dont       #
 # nous avons besoin.                                                              #
 #                                                                                 #
-# Django à sa propre vision du pattern MVC. Le contrôleur est le framework,       #
+# Django a sa propre vision du pattern MVC. Le contrôleur est le framework,       #
 # le modèle sont les classes ORM, mais les vues sont les fonctions de views.py,   #
 # pas les templates.                                                              #
 ###################################################################################
