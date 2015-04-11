@@ -1,15 +1,17 @@
 # Wrapper for loading templates from eggs via pkg_resources.resource_string.
 from __future__ import unicode_literals
 
+from django.apps import apps
+from django.template.base import TemplateDoesNotExist
+from django.utils import six
+
+from .base import Loader as BaseLoader
+
 try:
     from pkg_resources import resource_string
 except ImportError:
     resource_string = None
 
-from django.conf import settings
-from django.template.base import TemplateDoesNotExist
-from django.template.loader import BaseLoader
-from django.utils import six
 
 class Loader(BaseLoader):
     is_usable = resource_string is not None
@@ -22,12 +24,12 @@ class Loader(BaseLoader):
         """
         if resource_string is not None:
             pkg_name = 'templates/' + template_name
-            for app in settings.INSTALLED_APPS:
+            for app_config in apps.get_app_configs():
                 try:
-                    resource = resource_string(app, pkg_name)
+                    resource = resource_string(app_config.name, pkg_name)
                 except Exception:
                     continue
-                if not six.PY3:
-                    resource = resource.decode(settings.FILE_CHARSET)
-                return (resource, 'egg:%s:%s' % (app, pkg_name))
+                if six.PY2:
+                    resource = resource.decode(self.engine.file_charset)
+                return (resource, 'egg:%s:%s' % (app_config.name, pkg_name))
         raise TemplateDoesNotExist(template_name)

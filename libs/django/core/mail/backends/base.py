@@ -1,10 +1,18 @@
 """Base email backend class."""
 
+
 class BaseEmailBackend(object):
     """
     Base class for email backend implementations.
 
     Subclasses must at least overwrite send_messages().
+
+   open() and close() can be called indirectly by using a backend object as a
+   context manager:
+
+       with backend as connection:
+           # do something with connection
+           pass
     """
     def __init__(self, fail_silently=False, **kwargs):
         self.fail_silently = fail_silently
@@ -31,9 +39,16 @@ class BaseEmailBackend(object):
         """Close a network connection."""
         pass
 
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
     def send_messages(self, email_messages):
         """
         Sends one or more EmailMessage objects and returns the number of email
         messages sent.
         """
-        raise NotImplementedError
+        raise NotImplementedError('subclasses of BaseEmailBackend must override send_messages() method')

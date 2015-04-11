@@ -1,7 +1,8 @@
 from ctypes import byref, c_int
 from datetime import date, datetime, time
+
 from django.contrib.gis.gdal.base import GDALBase
-from django.contrib.gis.gdal.error import OGRException
+from django.contrib.gis.gdal.error import GDALException
 from django.contrib.gis.gdal.prototypes import ds as capi
 from django.utils.encoding import force_text
 
@@ -16,7 +17,6 @@ class Field(GDALBase):
     from a Feature object.
     """
 
-    #### Python 'magic' routines ####
     def __init__(self, feat, index):
         """
         Initializes on the feature object and the integer index of
@@ -29,7 +29,7 @@ class Field(GDALBase):
         # Getting the pointer for this field.
         fld_ptr = capi.get_feat_field_defn(feat.ptr, index)
         if not fld_ptr:
-            raise OGRException('Cannot create OGR Field, invalid pointer given.')
+            raise GDALException('Cannot create OGR Field, invalid pointer given.')
         self.ptr = fld_ptr
 
         # Setting the class depending upon the OGR Field Type (OFT)
@@ -44,7 +44,7 @@ class Field(GDALBase):
         "Returns the string representation of the Field."
         return str(self.value).strip()
 
-    #### Field Methods ####
+    # #### Field Methods ####
     def as_double(self):
         "Retrieves the Field's value as a double (float)."
         return capi.get_field_as_double(self._feat.ptr, self._index)
@@ -67,9 +67,9 @@ class Field(GDALBase):
         if status:
             return (yy, mm, dd, hh, mn, ss, tz)
         else:
-            raise OGRException('Unable to retrieve date & time information from the field.')
+            raise GDALException('Unable to retrieve date & time information from the field.')
 
-    #### Field Properties ####
+    # #### Field Properties ####
     @property
     def name(self):
         "Returns the name of this Field."
@@ -102,7 +102,8 @@ class Field(GDALBase):
         "Returns the width of this Field."
         return capi.get_field_width(self.ptr)
 
-### The Field sub-classes for each OGR Field type. ###
+
+# ### The Field sub-classes for each OGR Field type. ###
 class OFTInteger(Field):
     _double = False
 
@@ -125,16 +126,26 @@ class OFTInteger(Field):
         """
         return 0
 
+
 class OFTReal(Field):
     @property
     def value(self):
         "Returns a float contained in this field."
         return self.as_double()
 
+
 # String & Binary fields, just subclasses
-class OFTString(Field): pass
-class OFTWideString(Field): pass
-class OFTBinary(Field): pass
+class OFTString(Field):
+    pass
+
+
+class OFTWideString(Field):
+    pass
+
+
+class OFTBinary(Field):
+    pass
+
 
 # OFTDate, OFTTime, OFTDateTime fields.
 class OFTDate(Field):
@@ -144,8 +155,9 @@ class OFTDate(Field):
         try:
             yy, mm, dd, hh, mn, ss, tz = self.as_datetime()
             return date(yy.value, mm.value, dd.value)
-        except (ValueError, OGRException):
+        except (ValueError, GDALException):
             return None
+
 
 class OFTDateTime(Field):
     @property
@@ -158,8 +170,9 @@ class OFTDateTime(Field):
         try:
             yy, mm, dd, hh, mn, ss, tz = self.as_datetime()
             return datetime(yy.value, mm.value, dd.value, hh.value, mn.value, ss.value)
-        except (ValueError, OGRException):
+        except (ValueError, GDALException):
             return None
+
 
 class OFTTime(Field):
     @property
@@ -168,27 +181,39 @@ class OFTTime(Field):
         try:
             yy, mm, dd, hh, mn, ss, tz = self.as_datetime()
             return time(hh.value, mn.value, ss.value)
-        except (ValueError, OGRException):
+        except (ValueError, GDALException):
             return None
 
+
 # List fields are also just subclasses
-class OFTIntegerList(Field): pass
-class OFTRealList(Field): pass
-class OFTStringList(Field): pass
-class OFTWideStringList(Field): pass
+class OFTIntegerList(Field):
+    pass
+
+
+class OFTRealList(Field):
+    pass
+
+
+class OFTStringList(Field):
+    pass
+
+
+class OFTWideStringList(Field):
+    pass
 
 # Class mapping dictionary for OFT Types and reverse mapping.
-OGRFieldTypes = { 0 : OFTInteger,
-                  1 : OFTIntegerList,
-                  2 : OFTReal,
-                  3 : OFTRealList,
-                  4 : OFTString,
-                  5 : OFTStringList,
-                  6 : OFTWideString,
-                  7 : OFTWideStringList,
-                  8 : OFTBinary,
-                  9 : OFTDate,
-                 10 : OFTTime,
-                 11 : OFTDateTime,
-                  }
-ROGRFieldTypes = dict([(cls, num) for num, cls in OGRFieldTypes.items()])
+OGRFieldTypes = {
+    0: OFTInteger,
+    1: OFTIntegerList,
+    2: OFTReal,
+    3: OFTRealList,
+    4: OFTString,
+    5: OFTStringList,
+    6: OFTWideString,
+    7: OFTWideStringList,
+    8: OFTBinary,
+    9: OFTDate,
+    10: OFTTime,
+    11: OFTDateTime,
+}
+ROGRFieldTypes = {cls: num for num, cls in OGRFieldTypes.items()}

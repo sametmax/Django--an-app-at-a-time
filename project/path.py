@@ -28,7 +28,12 @@ import tempfile
 # (sys.getfilesystemencoding() nous donne l'encoding du système de fichier
 # qui peut être différent sous Windows, Mac ou Unix)
 FS_ENCODING = sys.getfilesystemencoding()
-THIS_FILE = __file__.decode(FS_ENCODING)
+
+try:
+    THIS_FILE = __file__.decode(FS_ENCODING)
+except AttributeError:
+    # En Python 3, __file__ est déjà décodé
+    THIS_FILE = __file__
 
 # Nous créons ces paramètres dynamiquement, ce qui nous donne les chemins
 # absolus vers le dossier du projet et le dossier racine contenant tout
@@ -38,7 +43,14 @@ PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(THIS_FILE)))
 ROOT_DIR = os.path.dirname(PROJECT_DIR)
 APPS_DIR = os.path.join(ROOT_DIR, 'apps')
 LIBS_DIR = os.path.join(ROOT_DIR, 'libs')
-TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
+
+
+try:
+    TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
+except AttributeError:
+    # En Python 3, __file__ est déjà décodé
+    TEMP_DIR = tempfile.gettempdir()
+
 
 
 # Nous ajoutons les dossiers "apps" et "libs" au PYTHON PATH, de telle sorte
@@ -54,7 +66,7 @@ TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
 # les apps dans le dossier racine comme dans le tutorial Django officiel, mais
 # dans un gros projet avec beaucoup d'apps, on les met généralement toutes
 # dans un dossier "apps" comme nous venons de faire, donc c'est une bonne
-# chose à connaître.
+# chose à connaitre.
 sys.path.append(LIBS_DIR)
 sys.path.append(APPS_DIR)
 

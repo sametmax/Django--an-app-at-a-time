@@ -1,15 +1,20 @@
-from ctypes import c_char_p, c_int, c_void_p, POINTER
-from django.contrib.gis.gdal.libgdal import lgdal, std_call
-from django.contrib.gis.gdal.prototypes.generation import (const_string_output,
-    double_output, int_output, srs_output, string_output, void_output)
+from ctypes import POINTER, c_char_p, c_int, c_void_p
 
-## Shortcut generation for routines with known parameters.
+from django.contrib.gis.gdal.libgdal import lgdal, std_call
+from django.contrib.gis.gdal.prototypes.generation import (
+    const_string_output, double_output, int_output, srs_output, string_output,
+    void_output,
+)
+
+
+# Shortcut generation for routines with known parameters.
 def srs_double(f):
     """
     Creates a function prototype for the OSR routines that take
     the OSRSpatialReference object and
     """
     return double_output(f, [c_void_p, POINTER(c_int)], errcheck=True)
+
 
 def units_func(f):
     """
@@ -51,7 +56,9 @@ angular_units = units_func(lgdal.OSRGetAngularUnits)
 # For exporting to WKT, PROJ.4, "Pretty" WKT, and XML.
 to_wkt = string_output(std_call('OSRExportToWkt'), [c_void_p, POINTER(c_char_p)], decoding='ascii')
 to_proj = string_output(std_call('OSRExportToProj4'), [c_void_p, POINTER(c_char_p)], decoding='ascii')
-to_pretty_wkt = string_output(std_call('OSRExportToPrettyWkt'), [c_void_p, POINTER(c_char_p), c_int], offset=-2, decoding='ascii')
+to_pretty_wkt = string_output(std_call('OSRExportToPrettyWkt'),
+    [c_void_p, POINTER(c_char_p), c_int], offset=-2, decoding='ascii'
+)
 
 # Memory leak fixed in GDAL 1.5; still exists in 1.4.
 to_xml = string_output(lgdal.OSRExportToXML, [c_void_p, POINTER(c_char_p), c_char_p], offset=-2, decoding='ascii')
@@ -67,5 +74,5 @@ islocal = int_output(lgdal.OSRIsLocal, [c_void_p])
 isprojected = int_output(lgdal.OSRIsProjected, [c_void_p])
 
 # Coordinate transformation
-new_ct= srs_output(std_call('OCTNewCoordinateTransformation'), [c_void_p, c_void_p])
+new_ct = srs_output(std_call('OCTNewCoordinateTransformation'), [c_void_p, c_void_p])
 destroy_ct = void_output(std_call('OCTDestroyCoordinateTransformation'), [c_void_p], errcheck=False)

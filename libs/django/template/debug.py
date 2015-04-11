@@ -1,15 +1,14 @@
-from django.template.base import Lexer, Parser, tag_re, NodeList, VariableNode, TemplateSyntaxError
+from django.template.base import (
+    Lexer, NodeList, Parser, TemplateSyntaxError, VariableNode, tag_re,
+)
 from django.utils.encoding import force_text
-from django.utils.html import escape
-from django.utils.safestring import SafeData, EscapeData
 from django.utils.formats import localize
+from django.utils.html import conditional_escape
+from django.utils.safestring import EscapeData, SafeData
 from django.utils.timezone import template_localtime
 
 
 class DebugLexer(Lexer):
-    def __init__(self, template_string, origin):
-        super(DebugLexer, self).__init__(template_string, origin)
-
     def tokenize(self):
         "Return a list of tokens from a given template_string"
         result, upto = [], 0
@@ -30,13 +29,14 @@ class DebugLexer(Lexer):
         token.source = self.origin, source
         return token
 
+
 class DebugParser(Parser):
     def __init__(self, lexer):
         super(DebugParser, self).__init__(lexer)
         self.command_stack = []
 
     def enter_command(self, command, token):
-        self.command_stack.append( (command, token.source) )
+        self.command_stack.append((command, token.source))
 
     def exit_command(self):
         self.command_stack.pop()
@@ -64,9 +64,14 @@ class DebugParser(Parser):
         msg = "Unclosed tag '%s'. Looking for one of: %s " % (command, ', '.join(parse_until))
         raise self.source_error(source, msg)
 
+    def compile_filter_error(self, token, e):
+        if not hasattr(e, 'django_template_source'):
+            e.django_template_source = token.source
+
     def compile_function_error(self, token, e):
         if not hasattr(e, 'django_template_source'):
             e.django_template_source = token.source
+
 
 class DebugNodeList(NodeList):
     def render_node(self, node, context):
@@ -92,6 +97,6 @@ class DebugVariableNode(VariableNode):
                 e.django_template_source = self.source
             raise
         if (context.autoescape and not isinstance(output, SafeData)) or isinstance(output, EscapeData):
-            return escape(output)
+            return conditional_escape(output)
         else:
             return output

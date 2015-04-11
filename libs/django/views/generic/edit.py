@@ -1,13 +1,43 @@
-from django.forms import models as model_forms
+import inspect
+import re
+import warnings
+
 from django.core.exceptions import ImproperlyConfigured
+from django.forms import models as model_forms
 from django.http import HttpResponseRedirect
+from django.utils import six
+from django.utils.deprecation import RemovedInDjango20Warning
 from django.utils.encoding import force_text
-from django.views.generic.base import TemplateResponseMixin, ContextMixin, View
-from django.views.generic.detail import (SingleObjectMixin,
-                        SingleObjectTemplateResponseMixin, BaseDetailView)
+from django.views.generic.base import ContextMixin, TemplateResponseMixin, View
+from django.views.generic.detail import (
+    BaseDetailView, SingleObjectMixin, SingleObjectTemplateResponseMixin,
+)
+
+PERCENT_PLACEHOLDER_REGEX = re.compile(r'%\([^\)]+\)')  # RemovedInDjango20Warning
 
 
-class FormMixin(ContextMixin):
+class FormMixinBase(type):
+    def __new__(cls, name, bases, attrs):
+        get_form = attrs.get('get_form')
+        if get_form and inspect.isfunction(get_form):
+            try:
+                inspect.getcallargs(get_form, None)
+            except TypeError:
+                warnings.warn(
+                    "`%s.%s.get_form` method must define a default value for "
+                    "its `form_class` argument." % (attrs['__module__'], name),
+                    RemovedInDjango20Warning, stacklevel=2
+                )
+
+                def get_form_with_form_class(self, form_class=None):
+                    if form_class is None:
+                        form_class = self.get_form_class()
+                    return get_form(self, form_class=form_class)
+                attrs['get_form'] = get_form_with_form_class
+        return super(FormMixinBase, cls).__new__(cls, name, bases, attrs)
+
+
+class FormMixin(six.with_metaclass(FormMixinBase, ContextMixin)):
     """
     A mixin that provides a way to show and handle a form in a request.
     """
@@ -15,6 +45,7 @@ class FormMixin(ContextMixin):
     initial = {}
     form_class = None
     success_url = None
+    prefix = None
 
     def get_initial(self):
         """
@@ -22,23 +53,35 @@ class FormMixin(ContextMixin):
         """
         return self.initial.copy()
 
+    def get_prefix(self):
+        """
+        Returns the prefix to use for forms on this view
+        """
+        return self.prefix
+
     def get_form_class(self):
         """
         Returns the form class to use in this view
         """
         return self.form_class
 
-    def get_form(self, form_class):
+    def get_form(self, form_class=None):
         """
         Returns an instance of the form to be used in this view.
         """
+        if form_class is None:
+            form_class = self.get_form_class()
         return form_class(**self.get_form_kwargs())
 
     def get_form_kwargs(self):
         """
         Returns the keyword arguments for instantiating the form.
         """
-        kwargs = {'initial': self.get_initial()}
+        kwargs = {
+            'initial': self.get_initial(),
+            'prefix': self.get_prefix(),
+        }
+
         if self.request.method in ('POST', 'PUT'):
             kwargs.update({
                 'data': self.request.POST,
@@ -76,11 +119,16 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
     """
     A mixin that provides a way to show and handle a modelform in a request.
     """
+    fields = None
 
     def get_form_class(self):
         """
         Returns the form class to use in this view.
         """
+        if self.fields is not None and self.form_class:
+            raise ImproperlyConfigured(
+                "Specifying both 'fields' and 'form_class' is not permitted."
+            )
         if self.form_class:
             return self.form_class
         else:
@@ -95,14 +143,22 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
                 # Try to get a queryset and extract the model class
                 # from that
                 model = self.get_queryset().model
-            return model_forms.modelform_factory(model)
+
+            if self.fields is None:
+                raise ImproperlyConfigured(
+                    "Using ModelFormMixin (base class of %s) without "
+                    "the 'fields' attribute is prohibited." % self.__class__.__name__
+                )
+
+            return model_forms.modelform_factory(model, fields=self.fields)
 
     def get_form_kwargs(self):
         """
         Returns the keyword arguments for instantiating the form.
         """
         kwargs = super(ModelFormMixin, self).get_form_kwargs()
-        kwargs.update({'instance': self.object})
+        if hasattr(self, 'object'):
+            kwargs.update({'instance': self.object})
         return kwargs
 
     def get_success_url(self):
@@ -110,7 +166,17 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
         Returns the supplied URL.
         """
         if self.success_url:
-            url = self.success_url % self.object.__dict__
+            # force_text can be removed with deprecation warning
+            self.success_url = force_text(self.success_url)
+            if PERCENT_PLACEHOLDER_REGEX.search(self.success_url):
+                warnings.warn(
+                    "%()s placeholder style in success_url is deprecated. "
+                    "Please replace them by the {} Python format syntax.",
+                    RemovedInDjango20Warning, stacklevel=2
+                )
+                url = self.success_url % self.object.__dict__
+            else:
+                url = self.success_url.format(**self.object.__dict__)
         else:
             try:
                 url = self.object.get_absolute_url()
@@ -127,20 +193,6 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
         self.object = form.save()
         return super(ModelFormMixin, self).form_valid(form)
 
-    def get_context_data(self, **kwargs):
-        """
-        If an object has been supplied, inject it into the context with the
-        supplied context_object_name name.
-        """
-        context = {}
-        if self.object:
-            context['object'] = self.object
-            context_object_name = self.get_context_object_name(self.object)
-            if context_object_name:
-                context[context_object_name] = self.object
-        context.update(kwargs)
-        return super(ModelFormMixin, self).get_context_data(**context)
-
 
 class ProcessFormView(View):
     """
@@ -150,8 +202,7 @@ class ProcessFormView(View):
         """
         Handles GET requests and instantiates a blank version of the form.
         """
-        form_class = self.get_form_class()
-        form = self.get_form(form_class)
+        form = self.get_form()
         return self.render_to_response(self.get_context_data(form=form))
 
     def post(self, request, *args, **kwargs):
@@ -159,8 +210,7 @@ class ProcessFormView(View):
         Handles POST requests, instantiating a form instance with the passed
         POST variables and then checked for validity.
         """
-        form_class = self.get_form_class()
-        form = self.get_form(form_class)
+        form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
         else:
@@ -242,16 +292,27 @@ class DeletionMixin(object):
         redirects to the success URL.
         """
         self.object = self.get_object()
+        success_url = self.get_success_url()
         self.object.delete()
-        return HttpResponseRedirect(self.get_success_url())
+        return HttpResponseRedirect(success_url)
 
     # Add support for browsers which only accept GET and POST for now.
-    def post(self, *args, **kwargs):
-        return self.delete(*args, **kwargs)
+    def post(self, request, *args, **kwargs):
+        return self.delete(request, *args, **kwargs)
 
     def get_success_url(self):
         if self.success_url:
-            return self.success_url
+            # force_text can be removed with deprecation warning
+            self.success_url = force_text(self.success_url)
+            if PERCENT_PLACEHOLDER_REGEX.search(self.success_url):
+                warnings.warn(
+                    "%()s placeholder style in success_url is deprecated. "
+                    "Please replace them by the {} Python format syntax.",
+                    RemovedInDjango20Warning, stacklevel=2
+                )
+                return self.success_url % self.object.__dict__
+            else:
+                return self.success_url.format(**self.object.__dict__)
         else:
             raise ImproperlyConfigured(
                 "No URL to redirect to. Provide a success_url.")

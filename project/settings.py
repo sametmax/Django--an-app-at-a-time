@@ -42,7 +42,7 @@ import os
 # Le fichier path.py est un quelque chose que nous codons nous même, il n'est pas
 # fournit avec Django, mais il est très pratique pour ne pas avoir à écrire
 # ces chemins en dur.
-from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
+from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
 
 # Affiche des messages d'erreurs sur la page Web si quelque chose plante.

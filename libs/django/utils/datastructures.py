@@ -1,6 +1,9 @@
 import copy
 import warnings
+from collections import OrderedDict
+
 from django.utils import six
+from django.utils.deprecation import RemovedInDjango19Warning
 
 
 class MergeDict(object):
@@ -12,7 +15,15 @@ class MergeDict(object):
     first occurrence will be used.
     """
     def __init__(self, *dicts):
+        warnings.warn('`MergeDict` is deprecated, use `dict.update()` '
+                      'instead.', RemovedInDjango19Warning, 2)
         self.dicts = dicts
+
+    def __bool__(self):
+        return any(self.dicts)
+
+    def __nonzero__(self):
+        return type(self).__bool__(self)
 
     def __getitem__(self, key):
         for dict_ in self.dicts:
@@ -20,7 +31,7 @@ class MergeDict(object):
                 return dict_[key]
             except KeyError:
                 pass
-        raise KeyError
+        raise KeyError(key)
 
     def __copy__(self):
         return self.__class__(*self.dicts)
@@ -109,6 +120,7 @@ class MergeDict(object):
         dictreprs = ', '.join(repr(d) for d in self.dicts)
         return '%s(%s)' % (self.__class__.__name__, dictreprs)
 
+
 class SortedDict(dict):
     """
     A dictionary that keeps its keys in the order in which they're inserted.
@@ -119,6 +131,10 @@ class SortedDict(dict):
         return instance
 
     def __init__(self, data=None):
+        warnings.warn(
+            "SortedDict is deprecated and will be removed in Django 1.9.",
+            RemovedInDjango19Warning, stacklevel=2
+        )
         if data is None or isinstance(data, dict):
             data = data or []
             super(SortedDict, self).__init__(data)
@@ -211,31 +227,6 @@ class SortedDict(dict):
             self.keyOrder.append(key)
         return super(SortedDict, self).setdefault(key, default)
 
-    def value_for_index(self, index):
-        """Returns the value of the item at the given zero-based index."""
-        # This, and insert() are deprecated because they cannot be implemented
-        # using collections.OrderedDict (Python 2.7 and up), which we'll
-        # eventually switch to
-        warnings.warn(
-            "SortedDict.value_for_index is deprecated", PendingDeprecationWarning,
-            stacklevel=2
-        )
-        return self[self.keyOrder[index]]
-
-    def insert(self, index, key, value):
-        """Inserts the key, value pair before the item with the given index."""
-        warnings.warn(
-            "SortedDict.insert is deprecated", PendingDeprecationWarning,
-            stacklevel=2
-        )
-        if key in self.keyOrder:
-            n = self.keyOrder.index(key)
-            del self.keyOrder[n]
-            if n < index:
-                index -= 1
-        self.keyOrder.insert(index, key)
-        super(SortedDict, self).__setitem__(key, value)
-
     def copy(self):
         """Returns a copy of this object."""
         # This way of initializing the copy means it works for subclasses, too.
@@ -246,14 +237,50 @@ class SortedDict(dict):
         Replaces the normal dict.__repr__ with a version that returns the keys
         in their sorted order.
         """
-        return '{%s}' % ', '.join(['%r: %r' % (k, v) for k, v in six.iteritems(self)])
+        return '{%s}' % ', '.join('%r: %r' % (k, v) for k, v in six.iteritems(self))
 
     def clear(self):
         super(SortedDict, self).clear()
         self.keyOrder = []
 
+
+class OrderedSet(object):
+    """
+    A set which keeps the ordering of the inserted items.
+    Currently backs onto OrderedDict.
+    """
+
+    def __init__(self, iterable=None):
+        self.dict = OrderedDict(((x, None) for x in iterable) if iterable else [])
+
+    def add(self, item):
+        self.dict[item] = None
+
+    def remove(self, item):
+        del self.dict[item]
+
+    def discard(self, item):
+        try:
+            self.remove(item)
+        except KeyError:
+            pass
+
+    def __iter__(self):
+        return iter(self.dict.keys())
+
+    def __contains__(self, item):
+        return item in self.dict
+
+    def __bool__(self):
+        return bool(self.dict)
+
+    def __nonzero__(self):      # Python 2 compatibility
+        return type(self).__bool__(self)
+
+
 class MultiValueDictKeyError(KeyError):
     pass
+
 
 class MultiValueDict(dict):
     """
@@ -292,7 +319,7 @@ class MultiValueDict(dict):
         try:
             list_ = super(MultiValueDict, self).__getitem__(key)
         except KeyError:
-            raise MultiValueDictKeyError("Key %r not found in %r" % (key, self))
+            raise MultiValueDictKeyError(repr(key))
         try:
             return list_[-1]
         except IndexError:
@@ -319,7 +346,7 @@ class MultiValueDict(dict):
 
     def __getstate__(self):
         obj_dict = self.__dict__.copy()
-        obj_dict['_data'] = dict([(k, self.getlist(k)) for k in self])
+        obj_dict['_data'] = {k: self.getlist(k) for k in self}
         return obj_dict
 
     def __setstate__(self, obj_dict):
@@ -440,7 +467,7 @@ class MultiValueDict(dict):
         """
         Returns current object as a dict with singular values.
         """
-        return dict((key, self[key]) for key in self)
+        return {key: self[key] for key in self}
 
 
 class ImmutableList(tuple):
@@ -473,19 +500,20 @@ class ImmutableList(tuple):
             raise AttributeError(self.warning)
 
     # All list mutation functions complain.
-    __delitem__  = complain
+    __delitem__ = complain
     __delslice__ = complain
-    __iadd__     = complain
-    __imul__     = complain
-    __setitem__  = complain
+    __iadd__ = complain
+    __imul__ = complain
+    __setitem__ = complain
     __setslice__ = complain
-    append       = complain
-    extend       = complain
-    insert       = complain
-    pop          = complain
-    remove       = complain
-    sort         = complain
-    reverse      = complain
+    append = complain
+    extend = complain
+    insert = complain
+    pop = complain
+    remove = complain
+    sort = complain
+    reverse = complain
+
 
 class DictWrapper(dict):
     """

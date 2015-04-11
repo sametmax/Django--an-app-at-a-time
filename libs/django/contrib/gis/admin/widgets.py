@@ -1,17 +1,14 @@
 import logging
 
+from django.contrib.gis.gdal import GDALException
+from django.contrib.gis.geos import GEOSException, GEOSGeometry
 from django.forms.widgets import Textarea
-from django.template import loader, Context
-from django.templatetags.static import static
-from django.utils import six
-from django.utils import translation
-
-from django.contrib.gis.gdal import OGRException
-from django.contrib.gis.geos import GEOSGeometry, GEOSException, fromstr
+from django.template import loader
+from django.utils import six, translation
 
 # Creating a template context that contains Django settings
 # values needed by admin map templates.
-geo_context = Context({'LANGUAGE_BIDI' : translation.get_language_bidi()})
+geo_context = {'LANGUAGE_BIDI': translation.get_language_bidi()}
 logger = logging.getLogger('django.contrib.gis')
 
 
@@ -21,7 +18,11 @@ class OpenLayersWidget(Textarea):
     """
     def render(self, name, value, attrs=None):
         # Update the template parameters with any attributes passed in.
-        if attrs: self.params.update(attrs)
+        if attrs:
+            self.params.update(attrs)
+            self.params['editable'] = self.params['modifiable']
+        else:
+            self.params['editable'] = True
 
         # Defaulting the WKT value to a blank string -- this
         # will be tested in the JavaScript and the appropriate
@@ -36,11 +37,12 @@ class OpenLayersWidget(Textarea):
             except (GEOSException, ValueError) as err:
                 logger.error(
                     "Error creating geometry from value '%s' (%s)" % (
-                    value, err)
+                        value, err)
                 )
                 value = None
 
-        if value and value.geom_type.upper() != self.geom_type:
+        if (value and value.geom_type.upper() != self.geom_type and
+                self.geom_type != 'GEOMETRY'):
             value = None
 
         # Constructing the dictionary of the map options.
@@ -52,7 +54,7 @@ class OpenLayersWidget(Textarea):
         self.params['name'] = name
         # note: we must switch out dashes for underscores since js
         # functions are created using the module variable
-        js_safe_name = self.params['name'].replace('-','_')
+        js_safe_name = self.params['name'].replace('-', '_')
         self.params['module'] = 'geodjango_%s' % js_safe_name
 
         if value:
@@ -64,10 +66,10 @@ class OpenLayersWidget(Textarea):
                     ogr = value.ogr
                     ogr.transform(srid)
                     wkt = ogr.wkt
-                except OGRException as err:
+                except GDALException as err:
                     logger.error(
                         "Error transforming geometry from srid '%s' to srid '%s' (%s)" % (
-                        value.srid, srid, err)
+                            value.srid, srid, err)
                     )
                     wkt = ''
             else:
@@ -77,8 +79,8 @@ class OpenLayersWidget(Textarea):
             # geometry.
             self.params['wkt'] = wkt
 
-        return loader.render_to_string(self.template, self.params,
-                                       context_instance=geo_context)
+        self.params.update(geo_context)
+        return loader.render_to_string(self.template, self.params)
 
     def map_options(self):
         "Builds the map options hash for the OpenLayers template."
@@ -86,6 +88,7 @@ class OpenLayersWidget(Textarea):
         # JavaScript construction utilities for the Bounds and Projection.
         def ol_bounds(extent):
             return 'new OpenLayers.Bounds(%s)' % str(extent)
+
         def ol_projection(srid):
             return 'new OpenLayers.Projection("EPSG:%s")' % srid
 
@@ -117,25 +120,3 @@ class OpenLayersWidget(Textarea):
                     raise TypeError
                 map_options[js_name] = value
         return map_options
-
-    def _has_changed(self, initial, data):
-        """ Compare geographic value of data with its initial value. """
-
-        # Ensure we are dealing with a geographic object
-        if isinstance(initial, six.string_types):
-            try:
-                initial = GEOSGeometry(initial)
-            except (GEOSException, ValueError):
-                initial = None
-
-        # Only do a geographic comparison if both values are available
-        if initial and data:
-            data = fromstr(data)
-            data.transform(initial.srid)
-            # If the initial value was not added by the browser, the geometry
-            # provided may be slightly different, the first time it is saved.
-            # The comparison is done with a very low tolerance.
-            return not initial.equals_exact(data, tolerance=0.000001)
-        else:
-            # Check for change of state of existence
-            return bool(initial) != bool(data)

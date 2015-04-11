@@ -1,6 +1,8 @@
 from functools import wraps
+
 from django.utils.cache import patch_vary_headers
 from django.utils.decorators import available_attrs
+
 
 def vary_on_headers(*headers):
     """
@@ -21,6 +23,7 @@ def vary_on_headers(*headers):
             return response
         return inner_func
     return decorator
+
 
 def vary_on_cookie(func):
     """

@@ -8,9 +8,10 @@ See also http://www.aryehleib.com/MutableLists.html
 
 Author: Aryeh Leib Taurog.
 """
-from django.utils.functional import total_ordering
 from django.utils import six
-from django.utils.six.moves import xrange
+from django.utils.functional import total_ordering
+from django.utils.six.moves import range
+
 
 @total_ordering
 class ListMixin(object):
@@ -62,7 +63,7 @@ class ListMixin(object):
     _maxlength = None
     _IndexError = IndexError
 
-    ### Python initialization and special list interface methods ###
+    # ### Python initialization and special list interface methods ###
 
     def __init__(self, *args, **kwargs):
         if not hasattr(self, '_get_single_internal'):
@@ -77,7 +78,7 @@ class ListMixin(object):
     def __getitem__(self, index):
         "Get the item(s) at the specified index/slice."
         if isinstance(index, slice):
-            return [self._get_single_external(i) for i in xrange(*index.indices(len(self)))]
+            return [self._get_single_external(i) for i in range(*index.indices(len(self)))]
         else:
             index = self._checkindex(index)
             return self._get_single_external(index)
@@ -88,17 +89,17 @@ class ListMixin(object):
             raise TypeError("%s is not a legal index" % index)
 
         # calculate new length and dimensions
-        origLen     = len(self)
+        origLen = len(self)
         if isinstance(index, six.integer_types):
             index = self._checkindex(index)
-            indexRange  = [index]
+            indexRange = [index]
         else:
-            indexRange  = range(*index.indices(origLen))
+            indexRange = range(*index.indices(origLen))
 
-        newLen      = origLen - len(indexRange)
-        newItems    = ( self._get_single_internal(i)
-                        for i in xrange(origLen)
-                        if i not in indexRange )
+        newLen = origLen - len(indexRange)
+        newItems = (self._get_single_internal(i)
+                    for i in range(origLen)
+                    if i not in indexRange)
 
         self._rebuild(newLen, newItems)
 
@@ -113,10 +114,10 @@ class ListMixin(object):
 
     def __iter__(self):
         "Iterate over the items in the list"
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             yield self[i]
 
-    ### Special methods for arithmetic operations ###
+    # ### Special methods for arithmetic operations ###
     def __add__(self, other):
         'add another list-like object'
         return self.__class__(list(self) + list(other))
@@ -144,7 +145,7 @@ class ListMixin(object):
             del self[:]
         else:
             cache = list(self)
-            for i in range(n-1):
+            for i in range(n - 1):
                 self.extend(cache)
         return self
 
@@ -174,22 +175,24 @@ class ListMixin(object):
                 return False
         return len(self) < olen
 
-    ### Public list interface Methods ###
-    ## Non-mutating ##
+    # ### Public list interface Methods ###
+    # ## Non-mutating ##
     def count(self, val):
         "Standard list count method"
         count = 0
         for i in self:
-            if val == i: count += 1
+            if val == i:
+                count += 1
         return count
 
     def index(self, val):
         "Standard list index method"
-        for i in xrange(0, len(self)):
-            if self[i] == val: return i
+        for i in range(0, len(self)):
+            if self[i] == val:
+                return i
         raise ValueError('%s not found in object' % str(val))
 
-    ## Mutating ##
+    # ## Mutating ##
     def append(self, val):
         "Standard list append method"
         self[len(self):] = [val]
@@ -221,7 +224,7 @@ class ListMixin(object):
     def sort(self, cmp=None, key=None, reverse=False):
         "Standard list sort method"
         if key:
-            temp = [(key(v),v) for v in self]
+            temp = [(key(v), v) for v in self]
             temp.sort(key=lambda x: x[0], reverse=reverse)
             self[:] = [v[1] for v in temp]
         else:
@@ -232,7 +235,7 @@ class ListMixin(object):
                 temp.sort(reverse=reverse)
             self[:] = temp
 
-    ### Private routines ###
+    # ### Private routines ###
     def _rebuild(self, newLen, newItems):
         if newLen < self._minlength:
             raise ValueError('Must have at least %d items' % self._minlength)
@@ -266,8 +269,8 @@ class ListMixin(object):
 
         self._check_allowed(values)
 
-        origLen     = len(self)
-        valueList   = list(values)
+        origLen = len(self)
+        valueList = list(values)
         start, stop, step = index.indices(origLen)
 
         # CAREFUL: index.step and step are not the same!
@@ -279,7 +282,7 @@ class ListMixin(object):
 
     def _assign_extended_slice_rebuild(self, start, stop, step, valueList):
         'Assign an extended slice by rebuilding entire list'
-        indexList   = range(start, stop, step)
+        indexList = range(start, stop, step)
         # extended slice, only allow assigning slice of same size
         if len(valueList) != len(indexList):
             raise ValueError('attempt to assign sequence of size %d '
@@ -287,10 +290,11 @@ class ListMixin(object):
                              % (len(valueList), len(indexList)))
 
         # we're not changing the length of the sequence
-        newLen  = len(self)
+        newLen = len(self)
         newVals = dict(zip(indexList, valueList))
+
         def newItems():
-            for i in xrange(newLen):
+            for i in range(newLen):
                 if i in newVals:
                     yield newVals[i]
                 else:
@@ -300,7 +304,7 @@ class ListMixin(object):
 
     def _assign_extended_slice(self, start, stop, step, valueList):
         'Assign an extended slice by re-assigning individual items'
-        indexList   = range(start, stop, step)
+        indexList = range(start, stop, step)
         # extended slice, only allow assigning slice of same size
         if len(valueList) != len(indexList):
             raise ValueError('attempt to assign sequence of size %d '
@@ -314,9 +318,10 @@ class ListMixin(object):
         'Assign a simple slice; Can assign slice of any length'
         origLen = len(self)
         stop = max(start, stop)
-        newLen  = origLen - stop + start + len(valueList)
+        newLen = origLen - stop + start + len(valueList)
+
         def newItems():
-            for i in xrange(origLen + 1):
+            for i in range(origLen + 1):
                 if i == start:
                     for val in valueList:
                         yield val

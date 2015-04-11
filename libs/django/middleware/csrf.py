@@ -6,18 +6,15 @@ against request forgeries from other sites.
 """
 from __future__ import unicode_literals
 
-import hashlib
 import logging
 import re
-import random
 
 from django.conf import settings
 from django.core.urlresolvers import get_callable
 from django.utils.cache import patch_vary_headers
+from django.utils.crypto import constant_time_compare, get_random_string
 from django.utils.encoding import force_text
 from django.utils.http import same_origin
-from django.utils.crypto import constant_time_compare, get_random_string
-
 
 logger = logging.getLogger('django.request')
 
@@ -27,6 +24,7 @@ REASON_NO_CSRF_COOKIE = "CSRF cookie not set."
 REASON_BAD_TOKEN = "CSRF token missing or incorrect."
 
 CSRF_KEY_LENGTH = 32
+
 
 def _get_failure_view():
     """
@@ -51,6 +49,17 @@ def get_token(request):
     """
     request.META["CSRF_COOKIE_USED"] = True
     return request.META.get("CSRF_COOKIE", None)
+
+
+def rotate_token(request):
+    """
+    Changes the CSRF token in use for a request - should be done on login
+    for security purposes.
+    """
+    request.META.update({
+        "CSRF_COOKIE_USED": True,
+        "CSRF_COOKIE": _get_new_csrf_key(),
+    })
 
 
 def _sanitize_token(token):
@@ -83,6 +92,12 @@ class CsrfViewMiddleware(object):
         return None
 
     def _reject(self, request, reason):
+        logger.warning('Forbidden (%s): %s', reason, request.path,
+            extra={
+                'status_code': 403,
+                'request': request,
+            }
+        )
         return _get_failure_view()(request, reason=reason)
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
@@ -132,46 +147,38 @@ class CsrfViewMiddleware(object):
                 # Barth et al. found that the Referer header is missing for
                 # same-domain requests in only about 0.2% of cases or less, so
                 # we can use strict Referer checking.
-                referer = request.META.get('HTTP_REFERER')
+                referer = force_text(
+                    request.META.get('HTTP_REFERER'),
+                    strings_only=True,
+                    errors='replace'
+                )
                 if referer is None:
-                    logger.warning('Forbidden (%s): %s',
-                                   REASON_NO_REFERER, request.path,
-                        extra={
-                            'status_code': 403,
-                            'request': request,
-                        }
-                    )
                     return self._reject(request, REASON_NO_REFERER)
 
                 # Note that request.get_host() includes the port.
                 good_referer = 'https://%s/' % request.get_host()
                 if not same_origin(referer, good_referer):
                     reason = REASON_BAD_REFERER % (referer, good_referer)
-                    logger.warning('Forbidden (%s): %s', reason, request.path,
-                        extra={
-                            'status_code': 403,
-                            'request': request,
-                        }
-                    )
                     return self._reject(request, reason)
 
             if csrf_token is None:
                 # No CSRF cookie. For POST requests, we insist on a CSRF cookie,
                 # and in this way we can avoid all CSRF attacks, including login
                 # CSRF.
-                logger.warning('Forbidden (%s): %s',
-                               REASON_NO_CSRF_COOKIE, request.path,
-                    extra={
-                        'status_code': 403,
-                        'request': request,
-                    }
-                )
                 return self._reject(request, REASON_NO_CSRF_COOKIE)
 
             # Check non-cookie token for match.
             request_csrf_token = ""
             if request.method == "POST":
-                request_csrf_token = request.POST.get('csrfmiddlewaretoken', '')
+                try:
+                    request_csrf_token = request.POST.get('csrfmiddlewaretoken', '')
+                except IOError:
+                    # Handle a broken connection before we've completed reading
+                    # the POST data. process_view shouldn't raise any
+                    # exceptions, so we'll ignore and serve the user a 403
+                    # (assuming they're still listening, which they probably
+                    # aren't because of the error).
+                    pass
 
             if request_csrf_token == "":
                 # Fall back to X-CSRFToken, to make things easier for AJAX,
@@ -179,13 +186,6 @@ class CsrfViewMiddleware(object):
                 request_csrf_token = request.META.get('HTTP_X_CSRFTOKEN', '')
 
             if not constant_time_compare(request_csrf_token, csrf_token):
-                logger.warning('Forbidden (%s): %s',
-                               REASON_BAD_TOKEN, request.path,
-                    extra={
-                        'status_code': 403,
-                        'request': request,
-                    }
-                )
                 return self._reject(request, REASON_BAD_TOKEN)
 
         return self._accept(request)
@@ -195,7 +195,7 @@ class CsrfViewMiddleware(object):
             return response
 
         # If CSRF_COOKIE is unset, then CsrfViewMiddleware.process_view was
-        # never called, probaby because a request middleware returned a response
+        # never called, probably because a request middleware returned a response
         # (for example, contrib.auth redirecting to a login page).
         if request.META.get("CSRF_COOKIE") is None:
             return response
@@ -207,10 +207,11 @@ class CsrfViewMiddleware(object):
         # the expiry timer.
         response.set_cookie(settings.CSRF_COOKIE_NAME,
                             request.META["CSRF_COOKIE"],
-                            max_age = 60 * 60 * 24 * 7 * 52,
+                            max_age=settings.CSRF_COOKIE_AGE,
                             domain=settings.CSRF_COOKIE_DOMAIN,
                             path=settings.CSRF_COOKIE_PATH,
-                            secure=settings.CSRF_COOKIE_SECURE
+                            secure=settings.CSRF_COOKIE_SECURE,
+                            httponly=settings.CSRF_COOKIE_HTTPONLY
                             )
         # Content varies with the CSRF cookie, so set the Vary header.
         patch_vary_headers(response, ('Cookie',))

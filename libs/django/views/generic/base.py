@@ -1,14 +1,18 @@
 from __future__ import unicode_literals
 
 import logging
+import warnings
 from functools import update_wrapper
 
 from django import http
 from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import NoReverseMatch, reverse
 from django.template.response import TemplateResponse
-from django.utils.decorators import classonlymethod
 from django.utils import six
+from django.utils.decorators import classonlymethod
+from django.utils.deprecation import RemovedInDjango19Warning
 
+_sentinel = object()
 logger = logging.getLogger('django.request')
 
 
@@ -30,7 +34,7 @@ class View(object):
     dispatch-by-method and simple sanity checking.
     """
 
-    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options', 'trace']
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']
 
     def __init__(self, **kwargs):
         """
@@ -47,7 +51,6 @@ class View(object):
         """
         Main entry point for a request-response process.
         """
-        # sanitize keyword arguments
         for key in initkwargs:
             if key in cls.http_method_names:
                 raise TypeError("You tried to pass in the %s method name as a "
@@ -89,7 +92,7 @@ class View(object):
         logger.warning('Method Not Allowed (%s): %s', request.method, request.path,
             extra={
                 'status_code': 405,
-                'request': self.request
+                'request': request
             }
         )
         return http.HttpResponseNotAllowed(self._allowed_methods())
@@ -112,6 +115,7 @@ class TemplateResponseMixin(object):
     A mixin that can be used to render a template.
     """
     template_name = None
+    template_engine = None
     response_class = TemplateResponse
     content_type = None
 
@@ -125,9 +129,10 @@ class TemplateResponseMixin(object):
         """
         response_kwargs.setdefault('content_type', self.content_type)
         return self.response_class(
-            request = self.request,
-            template = self.get_template_names(),
-            context = context,
+            request=self.request,
+            template=self.get_template_names(),
+            context=context,
+            using=self.template_engine,
             **response_kwargs
         )
 
@@ -158,11 +163,37 @@ class RedirectView(View):
     """
     A view that provides a redirect on any GET request.
     """
-    permanent = True
+    permanent = _sentinel
     url = None
+    pattern_name = None
     query_string = False
 
-    def get_redirect_url(self, **kwargs):
+    def __init__(self, *args, **kwargs):
+        if 'permanent' not in kwargs and self.permanent is _sentinel:
+            warnings.warn(
+                "Default value of 'RedirectView.permanent' will change "
+                "from True to False in Django 1.9. Set an explicit value "
+                "to silence this warning.",
+                RemovedInDjango19Warning,
+                stacklevel=2
+            )
+            self.permanent = True
+        super(RedirectView, self).__init__(*args, **kwargs)
+
+    @classonlymethod
+    def as_view(cls, **initkwargs):
+        if 'permanent' not in initkwargs and cls.permanent is _sentinel:
+            warnings.warn(
+                "Default value of 'RedirectView.permanent' will change "
+                "from True to False in Django 1.9. Set an explicit value "
+                "to silence this warning.",
+                RemovedInDjango19Warning,
+                stacklevel=2
+            )
+            initkwargs['permanent'] = True
+        return super(RedirectView, cls).as_view(**initkwargs)
+
+    def get_redirect_url(self, *args, **kwargs):
         """
         Return the URL redirect to. Keyword arguments from the
         URL pattern match generating the redirect request
@@ -170,25 +201,31 @@ class RedirectView(View):
         """
         if self.url:
             url = self.url % kwargs
-            args = self.request.META.get('QUERY_STRING', '')
-            if args and self.query_string:
-                url = "%s?%s" % (url, args)
-            return url
+        elif self.pattern_name:
+            try:
+                url = reverse(self.pattern_name, args=args, kwargs=kwargs)
+            except NoReverseMatch:
+                return None
         else:
             return None
 
+        args = self.request.META.get('QUERY_STRING', '')
+        if args and self.query_string:
+            url = "%s?%s" % (url, args)
+        return url
+
     def get(self, request, *args, **kwargs):
-        url = self.get_redirect_url(**kwargs)
+        url = self.get_redirect_url(*args, **kwargs)
         if url:
             if self.permanent:
                 return http.HttpResponsePermanentRedirect(url)
             else:
                 return http.HttpResponseRedirect(url)
         else:
-            logger.warning('Gone: %s', self.request.path,
+            logger.warning('Gone: %s', request.path,
                         extra={
                             'status_code': 410,
-                            'request': self.request
+                            'request': request
                         })
             return http.HttpResponseGone()
 
@@ -205,4 +242,7 @@ class RedirectView(View):
         return self.get(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)

@@ -7,9 +7,18 @@ circular import difficulties.
 """
 from __future__ import unicode_literals
 
-from django.db.backends import util
-from django.utils import six
-from django.utils import tree
+from collections import namedtuple
+
+from django.apps import apps
+from django.core.exceptions import FieldDoesNotExist
+from django.db.backends import utils
+from django.db.models.constants import LOOKUP_SEP
+from django.utils import six, tree
+
+# PathInfo is used when converting lookups (fk__somecol). The contents
+# describe the relation in Model terms (model Options and Fields for both
+# sides of the relation. The join_field is the field backing the relation.
+PathInfo = namedtuple('PathInfo', 'from_opts to_opts target_fields join_field m2m direct')
 
 
 class InvalidQuery(Exception):
@@ -25,10 +34,11 @@ class QueryWrapper(object):
     parameters. Can be used to pass opaque data to a where-clause, for example.
     """
     def __init__(self, sql, params):
-        self.data = sql, params
+        self.data = sql, list(params)
 
-    def as_sql(self, qn=None, connection=None):
+    def as_sql(self, compiler=None, connection=None):
         return self.data
+
 
 class Q(tree.Node):
     """
@@ -47,6 +57,7 @@ class Q(tree.Node):
         if not isinstance(other, Q):
             raise TypeError(other)
         obj = type(self)()
+        obj.connector = conn
         obj.add(self, conn)
         obj.add(other, conn)
         return obj
@@ -63,6 +74,40 @@ class Q(tree.Node):
         obj.negate()
         return obj
 
+    def clone(self):
+        clone = self.__class__._new_instance(
+            children=[], connector=self.connector, negated=self.negated)
+        for child in self.children:
+            if hasattr(child, 'clone'):
+                clone.children.append(child.clone())
+            else:
+                clone.children.append(child)
+        return clone
+
+    def resolve_expression(self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False):
+        clause, _ = query._add_q(self, reuse, allow_joins=allow_joins)
+        return clause
+
+    @classmethod
+    def _refs_aggregate(cls, obj, existing_aggregates):
+        if not isinstance(obj, tree.Node):
+            aggregate, aggregate_lookups = refs_aggregate(obj[0].split(LOOKUP_SEP), existing_aggregates)
+            if not aggregate and hasattr(obj[1], 'refs_aggregate'):
+                return obj[1].refs_aggregate(existing_aggregates)
+            return aggregate, aggregate_lookups
+        for c in obj.children:
+            aggregate, aggregate_lookups = cls._refs_aggregate(c, existing_aggregates)
+            if aggregate:
+                return aggregate, aggregate_lookups
+        return False, ()
+
+    def refs_aggregate(self, existing_aggregates):
+        if not existing_aggregates:
+            return False
+
+        return self._refs_aggregate(self, existing_aggregates)
+
+
 class DeferredAttribute(object):
     """
     A wrapper for a deferred-loading field. When the value is read from this
@@ -76,7 +121,6 @@ class DeferredAttribute(object):
         Retrieves and caches the value from the datastore on the first lookup.
         Returns the cached value.
         """
-        from django.db.models.fields import FieldDoesNotExist
         non_deferred_model = instance._meta.proxy_for_model
         opts = non_deferred_model._meta
 
@@ -86,23 +130,16 @@ class DeferredAttribute(object):
             # self.field_name is the attname of the field, but only() takes the
             # actual name, so we need to translate it here.
             try:
-                f = opts.get_field_by_name(self.field_name)[0]
+                f = opts.get_field(self.field_name)
             except FieldDoesNotExist:
-                f = [f for f in opts.fields
-                     if f.attname == self.field_name][0]
+                f = [f for f in opts.fields if f.attname == self.field_name][0]
             name = f.name
-            # Lets see if the field is part of the parent chain. If so we
+            # Let's see if the field is part of the parent chain. If so we
             # might be able to reuse the already loaded value. Refs #18343.
             val = self._check_parent_chain(instance, name)
             if val is None:
-                # We use only() instead of values() here because we want the
-                # various data coersion methods (to_python(), etc.) to be
-                # called here.
-                val = getattr(
-                    non_deferred_model._base_manager.only(name).using(
-                        instance._state.db).get(pk=instance.pk),
-                    self.field_name
-                )
+                instance.refresh_from_db(fields=[self.field_name])
+                val = getattr(instance, self.field_name)
             data[self.field_name] = val
         return data[self.field_name]
 
@@ -120,7 +157,7 @@ class DeferredAttribute(object):
         field is a primary key field.
         """
         opts = instance._meta
-        f = opts.get_field_by_name(name)[0]
+        f = opts.get_field(name)
         link_field = opts.get_ancestor_link(f.model)
         if f.primary_key and f != link_field:
             return getattr(instance, link_field.attname)
@@ -154,7 +191,7 @@ def select_related_descend(field, restricted, requested, load_fields, reverse=Fa
     if not restricted and field.null:
         return False
     if load_fields:
-        if field.name not in load_fields:
+        if field.attname not in load_fields:
             if restricted and field.name in requested:
                 raise InvalidQuery("Field %s.%s cannot be both deferred"
                                    " and traversed using select_related"
@@ -162,6 +199,7 @@ def select_related_descend(field, restricted, requested, load_fields, reverse=Fa
                                    (field.model._meta.object_name, field.name))
             return False
     return True
+
 
 # This function is needed because data descriptors must be defined on a class
 # object, not an instance, to have any effect.
@@ -172,24 +210,51 @@ def deferred_class_factory(model, attrs):
     being replaced with DeferredAttribute objects. The "pk_value" ties the
     deferred attributes to a particular instance of the model.
     """
-    class Meta:
-        proxy = True
-        app_label = model._meta.app_label
-
-    # The app_cache wants a unique name for each model, otherwise the new class
-    # won't be created (we get an old one back). Therefore, we generate the
-    # name using the passed in attrs. It's OK to reuse an existing class
+    if not attrs:
+        return model
+    # Never create deferred models based on deferred model
+    if model._deferred:
+        # Deferred models are proxies for the non-deferred model. We never
+        # create chains of defers => proxy_for_model is the non-deferred
+        # model.
+        model = model._meta.proxy_for_model
+    # The app registry wants a unique name for each model, otherwise the new
+    # class won't be created (we get an exception). Therefore, we generate
+    # the name using the passed in attrs. It's OK to reuse an existing class
     # object if the attrs are identical.
     name = "%s_Deferred_%s" % (model.__name__, '_'.join(sorted(list(attrs))))
-    name = util.truncate_name(name, 80, 32)
+    name = utils.truncate_name(name, 80, 32)
 
-    overrides = dict([(attr, DeferredAttribute(attr, model))
-            for attr in attrs])
-    overrides["Meta"] = Meta
-    overrides["__module__"] = model.__module__
-    overrides["_deferred"] = True
-    return type(str(name), (model,), overrides)
+    try:
+        return apps.get_model(model._meta.app_label, name)
+
+    except LookupError:
+
+        class Meta:
+            proxy = True
+            app_label = model._meta.app_label
+
+        overrides = {attr: DeferredAttribute(attr, model) for attr in attrs}
+        overrides["Meta"] = Meta
+        overrides["__module__"] = model.__module__
+        overrides["_deferred"] = True
+        return type(str(name), (model,), overrides)
+
 
 # The above function is also used to unpickle model instances with deferred
 # fields.
 deferred_class_factory.__safe_for_unpickling__ = True
+
+
+def refs_aggregate(lookup_parts, aggregates):
+    """
+    A little helper method to check if the lookup_parts contains references
+    to the given aggregates set. Because the LOOKUP_SEP is contained in the
+    default annotation names we must check each prefix of the lookup_parts
+    for a match.
+    """
+    for n in range(len(lookup_parts) + 1):
+        level_n_lookup = LOOKUP_SEP.join(lookup_parts[0:n])
+        if level_n_lookup in aggregates and aggregates[level_n_lookup].contains_aggregate:
+            return aggregates[level_n_lookup], lookup_parts[n:]
+    return False, ()

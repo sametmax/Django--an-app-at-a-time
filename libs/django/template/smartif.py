@@ -1,6 +1,10 @@
 """
 Parser and utilities for the smart 'if' tag
 """
+import warnings
+
+from django.utils.deprecation import RemovedInDjango20Warning
+
 
 # Using a simple top down parser, as described here:
 #    http://effbot.org/zone/simple-top-down-parsing.htm.
@@ -13,9 +17,9 @@ class TokenBase(object):
     Base class for operators and literals, mainly for debugging and for throwing
     syntax errors.
     """
-    id = None # node/token type name
-    value = None # used by literals
-    first = second = None # used by tree nodes
+    id = None  # node/token type name
+    value = None  # used by literals
+    first = second = None  # used by tree nodes
 
     def nud(self, parser):
         # Null denotation - called in prefix context
@@ -98,6 +102,7 @@ OPERATORS = {
     'not': prefix(8, lambda context, x: not x.eval(context)),
     'in': infix(9, lambda context, x, y: x.eval(context) in y.eval(context)),
     'not in': infix(9, lambda context, x, y: x.eval(context) not in y.eval(context)),
+    # This should be removed in Django 2.0:
     '=': infix(10, lambda context, x, y: x.eval(context) == y.eval(context)),
     '==': infix(10, lambda context, x, y: x.eval(context) == y.eval(context)),
     '!=': infix(10, lambda context, x, y: x.eval(context) != y.eval(context)),
@@ -157,9 +162,9 @@ class IfParser(object):
         i = 0
         while i < l:
             token = tokens[i]
-            if token == "not" and i + 1 < l and tokens[i+1] == "in":
+            if token == "not" and i + 1 < l and tokens[i + 1] == "in":
                 token = "not in"
-                i += 1 # skip 'in'
+                i += 1  # skip 'in'
             mapped_tokens.append(self.translate_token(token))
             i += 1
 
@@ -173,6 +178,11 @@ class IfParser(object):
         except (KeyError, TypeError):
             return self.create_var(token)
         else:
+            if token == '=':
+                warnings.warn(
+                    "Operator '=' is deprecated and will be removed in Django 2.0. Use '==' instead.",
+                    RemovedInDjango20Warning, stacklevel=2
+                )
             return op()
 
     def next_token(self):

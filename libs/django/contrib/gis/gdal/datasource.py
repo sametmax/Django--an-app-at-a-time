@@ -39,15 +39,14 @@ from ctypes import byref
 # The GDAL C library, OGR exceptions, and the Layer object.
 from django.contrib.gis.gdal.base import GDALBase
 from django.contrib.gis.gdal.driver import Driver
-from django.contrib.gis.gdal.error import OGRException, OGRIndexError
+from django.contrib.gis.gdal.error import GDALException, OGRIndexError
 from django.contrib.gis.gdal.layer import Layer
-
 # Getting the ctypes prototypes for the DataSource.
 from django.contrib.gis.gdal.prototypes import ds as capi
-
-from django.utils.encoding import force_bytes, force_text
 from django.utils import six
-from django.utils.six.moves import xrange
+from django.utils.encoding import force_bytes, force_text
+from django.utils.six.moves import range
+
 
 # For more information, see the OGR C API source code:
 #  http://www.gdal.org/ogr/ogr__api_8h.html
@@ -56,7 +55,6 @@ from django.utils.six.moves import xrange
 class DataSource(GDALBase):
     "Wraps an OGR Data Source object."
 
-    #### Python 'magic' routines ####
     def __init__(self, ds_input, ds_driver=False, write=False, encoding='utf-8'):
         # The write flag.
         if write:
@@ -66,10 +64,7 @@ class DataSource(GDALBase):
         # See also http://trac.osgeo.org/gdal/wiki/rfc23_ogr_unicode
         self.encoding = encoding
 
-        # Registering all the drivers, this needs to be done
-        #  _before_ we try to open up a data source.
-        if not capi.get_driver_count():
-            capi.register_all()
+        Driver.ensure_registered()
 
         if isinstance(ds_input, six.string_types):
             # The data source driver is a void pointer.
@@ -77,36 +72,38 @@ class DataSource(GDALBase):
             try:
                 # OGROpen will auto-detect the data source type.
                 ds = capi.open_ds(force_bytes(ds_input), self._write, byref(ds_driver))
-            except OGRException:
+            except GDALException:
                 # Making the error message more clear rather than something
                 # like "Invalid pointer returned from OGROpen".
-                raise OGRException('Could not open the datasource at "%s"' % ds_input)
+                raise GDALException('Could not open the datasource at "%s"' % ds_input)
         elif isinstance(ds_input, self.ptr_type) and isinstance(ds_driver, Driver.ptr_type):
             ds = ds_input
         else:
-            raise OGRException('Invalid data source input type: %s' % type(ds_input))
+            raise GDALException('Invalid data source input type: %s' % type(ds_input))
 
-        if bool(ds):
+        if ds:
             self.ptr = ds
             self.driver = Driver(ds_driver)
         else:
             # Raise an exception if the returned pointer is NULL
-            raise OGRException('Invalid data source file "%s"' % ds_input)
+            raise GDALException('Invalid data source file "%s"' % ds_input)
 
     def __del__(self):
         "Destroys this DataStructure object."
-        if self._ptr: capi.destroy_ds(self._ptr)
+        if self._ptr and capi:
+            capi.destroy_ds(self._ptr)
 
     def __iter__(self):
         "Allows for iteration over the layers in a data source."
-        for i in xrange(self.layer_count):
+        for i in range(self.layer_count):
             yield self[i]
 
     def __getitem__(self, index):
         "Allows use of the index [] operator to get a layer at the index."
         if isinstance(index, six.string_types):
             l = capi.get_layer_by_name(self.ptr, force_bytes(index))
-            if not l: raise OGRIndexError('invalid OGR Layer name given: "%s"' % index)
+            if not l:
+                raise OGRIndexError('invalid OGR Layer name given: "%s"' % index)
         elif isinstance(index, int):
             if index < 0 or index >= self.layer_count:
                 raise OGRIndexError('index out of range')

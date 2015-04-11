@@ -3,16 +3,18 @@ Django's standard crypto functions and utilities.
 """
 from __future__ import unicode_literals
 
-import hmac
-import struct
-import hashlib
 import binascii
-import operator
-import time
-from functools import reduce
-
-# Use the system PRNG if possible
+import hashlib
+import hmac
 import random
+import struct
+import time
+
+from django.conf import settings
+from django.utils import six
+from django.utils.encoding import force_bytes
+from django.utils.six.moves import range
+
 try:
     random = random.SystemRandom()
     using_sysrandom = True
@@ -21,15 +23,6 @@ except NotImplementedError:
     warnings.warn('A secure pseudo-random number generator is not available '
                   'on your system. Falling back to Mersenne Twister.')
     using_sysrandom = False
-
-from django.conf import settings
-from django.utils.encoding import force_bytes
-from django.utils import six
-from django.utils.six.moves import xrange
-
-
-_trans_5c = bytearray([(x ^ 0x5C) for x in xrange(256)])
-_trans_36 = bytearray([(x ^ 0x36) for x in xrange(256)])
 
 
 def salted_hmac(key_salt, value, secret=None):
@@ -42,10 +35,13 @@ def salted_hmac(key_salt, value, secret=None):
     if secret is None:
         secret = settings.SECRET_KEY
 
+    key_salt = force_bytes(key_salt)
+    secret = force_bytes(secret)
+
     # We need to generate a derived key from our base key.  We can do this by
     # passing the key_salt and our base key through a pseudo-random function and
     # SHA1 works nicely.
-    key = hashlib.sha1((key_salt + secret).encode('utf-8')).digest()
+    key = hashlib.sha1(key_salt + secret).digest()
 
     # If len(key_salt + secret) > sha_constructor().block_size, the above
     # line is redundant and could be replaced by key = key_salt + secret, since
@@ -76,26 +72,36 @@ def get_random_string(length=12,
                     random.getstate(),
                     time.time(),
                     settings.SECRET_KEY)).encode('utf-8')
-                ).digest())
-    return ''.join([random.choice(allowed_chars) for i in range(length)])
+            ).digest())
+    return ''.join(random.choice(allowed_chars) for i in range(length))
 
 
-def constant_time_compare(val1, val2):
-    """
-    Returns True if the two strings are equal, False otherwise.
+if hasattr(hmac, "compare_digest"):
+    # Prefer the stdlib implementation, when available.
+    def constant_time_compare(val1, val2):
+        return hmac.compare_digest(force_bytes(val1), force_bytes(val2))
+else:
+    def constant_time_compare(val1, val2):
+        """
+        Returns True if the two strings are equal, False otherwise.
 
-    The time taken is independent of the number of characters that match.
-    """
-    if len(val1) != len(val2):
-        return False
-    result = 0
-    if six.PY3 and isinstance(val1, bytes) and isinstance(val2, bytes):
-        for x, y in zip(val1, val2):
-            result |= x ^ y
-    else:
-        for x, y in zip(val1, val2):
-            result |= ord(x) ^ ord(y)
-    return result == 0
+        The time taken is independent of the number of characters that match.
+
+        For the sake of simplicity, this function executes in constant time only
+        when the two strings have the same length. It short-circuits when they
+        have different lengths. Since Django only uses it to compare hashes of
+        known expected length, this is acceptable.
+        """
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        if six.PY3 and isinstance(val1, bytes) and isinstance(val2, bytes):
+            for x, y in zip(val1, val2):
+                result |= x ^ y
+        else:
+            for x, y in zip(val1, val2):
+                result |= ord(x) ^ ord(y)
+        return result == 0
 
 
 def _bin_to_long(x):
@@ -115,57 +121,70 @@ def _long_to_bin(x, hex_format_string):
     return binascii.unhexlify((hex_format_string % x).encode('ascii'))
 
 
-def _fast_hmac(key, msg, digest):
-    """
-    A trimmed down version of Python's HMAC implementation.
+if hasattr(hashlib, "pbkdf2_hmac"):
+    def pbkdf2(password, salt, iterations, dklen=0, digest=None):
+        """
+        Implements PBKDF2 with the same API as Django's existing
+        implementation, using the stdlib.
 
-    This function operates on bytes.
-    """
-    dig1, dig2 = digest(), digest()
-    if len(key) > dig1.block_size:
-        key = digest(key).digest()
-    key += b'\x00' * (dig1.block_size - len(key))
-    dig1.update(key.translate(_trans_36))
-    dig1.update(msg)
-    dig2.update(key.translate(_trans_5c))
-    dig2.update(dig1.digest())
-    return dig2
+        This is used in Python 2.7.8+ and 3.4+.
+        """
+        if digest is None:
+            digest = hashlib.sha256
+        if not dklen:
+            dklen = None
+        password = force_bytes(password)
+        salt = force_bytes(salt)
+        return hashlib.pbkdf2_hmac(
+            digest().name, password, salt, iterations, dklen)
+else:
+    def pbkdf2(password, salt, iterations, dklen=0, digest=None):
+        """
+        Implements PBKDF2 as defined in RFC 2898, section 5.2
 
+        HMAC+SHA256 is used as the default pseudo random function.
 
-def pbkdf2(password, salt, iterations, dklen=0, digest=None):
-    """
-    Implements PBKDF2 as defined in RFC 2898, section 5.2
+        As of 2014, 100,000 iterations was the recommended default which took
+        100ms on a 2.7Ghz Intel i7 with an optimized implementation. This is
+        probably the bare minimum for security given 1000 iterations was
+        recommended in 2001. This code is very well optimized for CPython and
+        is about five times slower than OpenSSL's implementation. Look in
+        django.contrib.auth.hashers for the present default, it is lower than
+        the recommended 100,000 because of the performance difference between
+        this and an optimized implementation.
+        """
+        assert iterations > 0
+        if not digest:
+            digest = hashlib.sha256
+        password = force_bytes(password)
+        salt = force_bytes(salt)
+        hlen = digest().digest_size
+        if not dklen:
+            dklen = hlen
+        if dklen > (2 ** 32 - 1) * hlen:
+            raise OverflowError('dklen too big')
+        l = -(-dklen // hlen)
+        r = dklen - (l - 1) * hlen
 
-    HMAC+SHA256 is used as the default pseudo random function.
+        hex_format_string = "%%0%ix" % (hlen * 2)
 
-    Right now 10,000 iterations is the recommended default which takes
-    100ms on a 2.2Ghz Core 2 Duo.  This is probably the bare minimum
-    for security given 1000 iterations was recommended in 2001. This
-    code is very well optimized for CPython and is only four times
-    slower than openssl's implementation.
-    """
-    assert iterations > 0
-    if not digest:
-        digest = hashlib.sha256
-    password = force_bytes(password)
-    salt = force_bytes(salt)
-    hlen = digest().digest_size
-    if not dklen:
-        dklen = hlen
-    if dklen > (2 ** 32 - 1) * hlen:
-        raise OverflowError('dklen too big')
-    l = -(-dklen // hlen)
-    r = dklen - (l - 1) * hlen
+        inner, outer = digest(), digest()
+        if len(password) > inner.block_size:
+            password = digest(password).digest()
+        password += b'\x00' * (inner.block_size - len(password))
+        inner.update(password.translate(hmac.trans_36))
+        outer.update(password.translate(hmac.trans_5C))
 
-    hex_format_string = "%%0%ix" % (hlen * 2)
-
-    def F(i):
-        def U():
+        def F(i):
             u = salt + struct.pack(b'>I', i)
-            for j in xrange(int(iterations)):
-                u = _fast_hmac(password, u, digest).digest()
-                yield _bin_to_long(u)
-        return _long_to_bin(reduce(operator.xor, U()), hex_format_string)
+            result = 0
+            for j in range(int(iterations)):
+                dig1, dig2 = inner.copy(), outer.copy()
+                dig1.update(u)
+                dig2.update(dig1.digest())
+                u = dig2.digest()
+                result ^= _bin_to_long(u)
+            return _long_to_bin(result, hex_format_string)
 
-    T = [F(x) for x in range(1, l + 1)]
-    return b''.join(T[:-1]) + T[-1][:r]
+        T = [F(x) for x in range(1, l)]
+        return b''.join(T) + F(l)[:r]

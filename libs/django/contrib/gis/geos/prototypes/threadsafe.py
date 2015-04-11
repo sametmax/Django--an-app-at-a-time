@@ -1,5 +1,9 @@
 import threading
-from django.contrib.gis.geos.libgeos import lgeos, notice_h, error_h, CONTEXT_PTR
+
+from django.contrib.gis.geos.libgeos import (
+    CONTEXT_PTR, error_h, lgeos, notice_h,
+)
+
 
 class GEOSContextHandle(object):
     """
@@ -11,7 +15,9 @@ class GEOSContextHandle(object):
         self.ptr = lgeos.initGEOS_r(notice_h, error_h)
 
     def __del__(self):
-        if self.ptr: lgeos.finishGEOS_r(self.ptr)
+        if self.ptr and lgeos:
+            lgeos.finishGEOS_r(self.ptr)
+
 
 # Defining a thread-local object and creating an instance
 # to hold a reference to GEOSContextHandle for this thread.
@@ -19,6 +25,7 @@ class GEOSContext(threading.local):
     handle = None
 
 thread_context = GEOSContext()
+
 
 class GEOSFunc(object):
     """
