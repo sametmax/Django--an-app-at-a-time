@@ -2,22 +2,29 @@
  This module contains functions that generate ctypes prototypes for the
  GDAL routines.
 """
-
 from ctypes import c_char_p, c_double, c_int, c_void_p
+from functools import partial
+
 from django.contrib.gis.gdal.prototypes.errcheck import (
-    check_arg_errcode, check_errcode, check_geom, check_geom_offset,
-    check_pointer, check_srs, check_str_arg, check_string, check_const_string)
+    check_arg_errcode, check_const_string, check_errcode, check_geom,
+    check_geom_offset, check_pointer, check_srs, check_str_arg, check_string,
+)
+
 
 class gdal_char_p(c_char_p):
     pass
 
-def double_output(func, argtypes, errcheck=False, strarg=False):
+
+def double_output(func, argtypes, errcheck=False, strarg=False, cpl=False):
     "Generates a ctypes function that returns a double value."
     func.argtypes = argtypes
     func.restype = c_double
-    if errcheck: func.errcheck = check_arg_errcode
-    if strarg: func.errcheck = check_str_arg
+    if errcheck:
+        func.errcheck = partial(check_arg_errcode, cpl=cpl)
+    if strarg:
+        func.errcheck = check_str_arg
     return func
+
 
 def geom_output(func, argtypes, offset=None):
     """
@@ -34,17 +41,20 @@ def geom_output(func, argtypes, offset=None):
     else:
         # Error code returned, geometry is returned by-reference.
         func.restype = c_int
+
         def geomerrcheck(result, func, cargs):
             return check_geom_offset(result, func, cargs, offset)
         func.errcheck = geomerrcheck
 
     return func
 
+
 def int_output(func, argtypes):
     "Generates a ctypes function that returns an integer value."
     func.argtypes = argtypes
     func.restype = c_int
     return func
+
 
 def srs_output(func, argtypes):
     """
@@ -57,7 +67,8 @@ def srs_output(func, argtypes):
     func.errcheck = check_srs
     return func
 
-def const_string_output(func, argtypes, offset=None, decoding=None):
+
+def const_string_output(func, argtypes, offset=None, decoding=None, cpl=False):
     func.argtypes = argtypes
     if offset:
         func.restype = c_int
@@ -65,7 +76,7 @@ def const_string_output(func, argtypes, offset=None, decoding=None):
         func.restype = c_char_p
 
     def _check_const(result, func, cargs):
-        res = check_const_string(result, func, cargs, offset=offset)
+        res = check_const_string(result, func, cargs, offset=offset, cpl=cpl)
         if res and decoding:
             res = res.decode(decoding)
         return res
@@ -73,11 +84,12 @@ def const_string_output(func, argtypes, offset=None, decoding=None):
 
     return func
 
+
 def string_output(func, argtypes, offset=-1, str_result=False, decoding=None):
     """
     Generates a ctypes prototype for the given function with the
     given argument types that returns a string from a GDAL pointer.
-    The `const` flag indicates whether the allocated pointer should 
+    The `const` flag indicates whether the allocated pointer should
     be freed via the GDAL library routine VSIFree -- but only applies
     only when `str_result` is True.
     """
@@ -94,32 +106,36 @@ def string_output(func, argtypes, offset=-1, str_result=False, decoding=None):
     # given offset.
     def _check_str(result, func, cargs):
         res = check_string(result, func, cargs,
-                            offset=offset, str_result=str_result)
+            offset=offset, str_result=str_result)
         if res and decoding:
             res = res.decode(decoding)
         return res
     func.errcheck = _check_str
     return func
 
-def void_output(func, argtypes, errcheck=True):
+
+def void_output(func, argtypes, errcheck=True, cpl=False):
     """
     For functions that don't only return an error code that needs to
     be examined.
     """
-    if argtypes: func.argtypes = argtypes
+    if argtypes:
+        func.argtypes = argtypes
     if errcheck:
         # `errcheck` keyword may be set to False for routines that
         # return void, rather than a status code.
         func.restype = c_int
-        func.errcheck = check_errcode
+        func.errcheck = partial(check_errcode, cpl=cpl)
     else:
         func.restype = None
-        
+
     return func
 
-def voidptr_output(func, argtypes):
+
+def voidptr_output(func, argtypes, errcheck=True):
     "For functions that return c_void_p."
     func.argtypes = argtypes
     func.restype = c_void_p
-    func.errcheck = check_pointer
+    if errcheck:
+        func.errcheck = check_pointer
     return func

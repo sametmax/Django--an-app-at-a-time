@@ -1,34 +1,41 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import unicode_literals
 
 import copy
 import os
 import re
 import sys
-import warnings
 from io import BytesIO
+from itertools import chain
 from pprint import pformat
-try:
-    from urllib.parse import parse_qsl, urlencode, quote, urljoin
-except ImportError:
-    from urllib import urlencode, quote
-    from urlparse import parse_qsl, urljoin
 
 from django.conf import settings
 from django.core import signing
-from django.core.exceptions import SuspiciousOperation, ImproperlyConfigured
+from django.core.exceptions import DisallowedHost, ImproperlyConfigured
 from django.core.files import uploadhandler
-from django.http.multipartparser import MultiPartParser
+from django.http.multipartparser import MultiPartParser, MultiPartParserError
 from django.utils import six
-from django.utils.datastructures import MultiValueDict, ImmutableList
-from django.utils.encoding import force_bytes, force_text, force_str, iri_to_uri
-
+from django.utils.datastructures import ImmutableList, MultiValueDict
+from django.utils.encoding import (
+    escape_uri_path, force_bytes, force_str, force_text, iri_to_uri,
+)
+from django.utils.six.moves.urllib.parse import (
+    parse_qsl, quote, urlencode, urljoin, urlsplit,
+)
 
 RAISE_ERROR = object()
-absolute_http_url_re = re.compile(r"^https?://", re.I)
 host_validation_re = re.compile(r"^([a-z0-9.-]+|\[[a-f0-9]*:[a-f0-9:]+\])(:\d+)?$")
 
 
 class UnreadablePostError(IOError):
+    pass
+
+
+class RawPostDataException(Exception):
+    """
+    You cannot access raw_post_data from a request that has
+    multipart/* POST data if it has been accessed via POST,
+    FILES, etc..
+    """
     pass
 
 
@@ -40,20 +47,34 @@ class HttpRequest(object):
     _upload_handlers = []
 
     def __init__(self):
-        self.GET, self.POST, self.COOKIES, self.META, self.FILES = {}, {}, {}, {}, {}
+        # WARNING: The `WSGIRequest` subclass doesn't call `super`.
+        # Any variable assignment made here should also happen in
+        # `WSGIRequest.__init__()`.
+
+        self.GET = QueryDict(mutable=True)
+        self.POST = QueryDict(mutable=True)
+        self.COOKIES = {}
+        self.META = {}
+        self.FILES = MultiValueDict()
+
         self.path = ''
         self.path_info = ''
         self.method = None
+        self.resolver_match = None
         self._post_parse_error = False
 
     def __repr__(self):
-        return build_request_repr(self)
+        if self.method is None or not self.get_full_path():
+            return force_str('<%s>' % self.__class__.__name__)
+        return force_str(
+            '<%s: %s %r>' % (self.__class__.__name__, self.method, force_str(self.get_full_path()))
+        )
 
     def get_host(self):
         """Returns the HTTP host using the environment or request headers."""
         # We try three options, in order of decreasing preference.
         if settings.USE_X_FORWARDED_HOST and (
-            'HTTP_X_FORWARDED_HOST' in self.META):
+                'HTTP_X_FORWARDED_HOST' in self.META):
             host = self.META['HTTP_X_FORWARDED_HOST']
         elif 'HTTP_HOST' in self.META:
             host = self.META['HTTP_HOST']
@@ -64,17 +85,28 @@ class HttpRequest(object):
             if server_port != ('443' if self.is_secure() else '80'):
                 host = '%s:%s' % (host, server_port)
 
-        allowed_hosts = ['*'] if settings.DEBUG else settings.ALLOWED_HOSTS
-        if validate_host(host, allowed_hosts):
+        # There is no hostname validation when DEBUG=True
+        if settings.DEBUG:
+            return host
+
+        domain, port = split_domain_port(host)
+        if domain and validate_host(domain, settings.ALLOWED_HOSTS):
             return host
         else:
-            raise SuspiciousOperation(
-                "Invalid HTTP_HOST header (you may need to set ALLOWED_HOSTS): %s" % host)
+            msg = "Invalid HTTP_HOST header: %r." % host
+            if domain:
+                msg += " You may need to add %r to ALLOWED_HOSTS." % domain
+            else:
+                msg += " The domain name provided is not valid according to RFC 1034/1035."
+            raise DisallowedHost(msg)
 
     def get_full_path(self):
         # RFC 3986 requires query string arguments to be in the ASCII range.
         # Rather than crash if this doesn't happen, we encode defensively.
-        return '%s%s' % (self.path, ('?' + iri_to_uri(self.META.get('QUERY_STRING', ''))) if self.META.get('QUERY_STRING', '') else '')
+        return '%s%s' % (
+            escape_uri_path(self.path),
+            ('?' + iri_to_uri(self.META.get('QUERY_STRING', ''))) if self.META.get('QUERY_STRING', '') else ''
+        )
 
     def get_signed_cookie(self, key, default=RAISE_ERROR, salt='', max_age=None):
         """
@@ -102,33 +134,49 @@ class HttpRequest(object):
     def build_absolute_uri(self, location=None):
         """
         Builds an absolute URI from the location and the variables available in
-        this request. If no location is specified, the absolute URI is built on
-        ``request.get_full_path()``.
+        this request. If no ``location`` is specified, the absolute URI is
+        built on ``request.get_full_path()``. Anyway, if the location is
+        absolute, it is simply converted to an RFC 3987 compliant URI and
+        returned and if location is relative or is scheme-relative (i.e.,
+        ``//example.com/``), it is urljoined to a base URL constructed from the
+        request variables.
         """
-        if not location:
-            location = self.get_full_path()
-        if not absolute_http_url_re.match(location):
-            current_uri = '%s://%s%s' % ('https' if self.is_secure() else 'http',
-                                         self.get_host(), self.path)
+        if location is None:
+            # Make it an absolute url (but schemeless and domainless) for the
+            # edge case that the path starts with '//'.
+            location = '//%s' % self.get_full_path()
+        bits = urlsplit(location)
+        if not (bits.scheme and bits.netloc):
+            current_uri = '{scheme}://{host}{path}'.format(scheme=self.scheme,
+                                                           host=self.get_host(),
+                                                           path=self.path)
+            # Join the constructed URL with the provided location, which will
+            # allow the provided ``location`` to apply query strings to the
+            # base path as well as override the host, if it begins with //
             location = urljoin(current_uri, location)
         return iri_to_uri(location)
 
-    def _is_secure(self):
-        return os.environ.get("HTTPS") == "on"
+    def _get_scheme(self):
+        return 'https' if os.environ.get("HTTPS") == "on" else 'http'
 
-    def is_secure(self):
+    @property
+    def scheme(self):
         # First, check the SECURE_PROXY_SSL_HEADER setting.
         if settings.SECURE_PROXY_SSL_HEADER:
             try:
                 header, value = settings.SECURE_PROXY_SSL_HEADER
             except ValueError:
-                raise ImproperlyConfigured('The SECURE_PROXY_SSL_HEADER setting must be a tuple containing two values.')
+                raise ImproperlyConfigured(
+                    'The SECURE_PROXY_SSL_HEADER setting must be a tuple containing two values.'
+                )
             if self.META.get(header, None) == value:
-                return True
-
-        # Failing that, fall back to _is_secure(), which is a hook for
+                return 'https'
+        # Failing that, fall back to _get_scheme(), which is a hook for
         # subclasses to implement.
-        return self._is_secure()
+        return self._get_scheme()
+
+    def is_secure(self):
+        return self.scheme == 'https'
 
     def is_ajax(self):
         return self.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
@@ -180,18 +228,13 @@ class HttpRequest(object):
     def body(self):
         if not hasattr(self, '_body'):
             if self._read_started:
-                raise Exception("You cannot access body after reading from request's data stream")
+                raise RawPostDataException("You cannot access body after reading from request's data stream")
             try:
                 self._body = self.read()
             except IOError as e:
                 six.reraise(UnreadablePostError, UnreadablePostError(*e.args), sys.exc_info()[2])
             self._stream = BytesIO(self._body)
         return self._body
-
-    @property
-    def raw_post_data(self):
-        warnings.warn('HttpRequest.raw_post_data has been deprecated. Use HttpRequest.body instead.', DeprecationWarning)
-        return self.body
 
     def _mark_post_parse_error(self):
         self._post = QueryDict('')
@@ -215,12 +258,12 @@ class HttpRequest(object):
                 data = self
             try:
                 self._post, self._files = self.parse_file_upload(self.META, data)
-            except:
-                # An error occured while parsing POST data. Since when
+            except MultiPartParserError:
+                # An error occurred while parsing POST data. Since when
                 # formatting the error the request handler might access
                 # self.POST, set self._post and self._file to prevent
                 # attempts to parse POST data again.
-                # Mark that an error occured. This allows self.__repr__ to
+                # Mark that an error occurred. This allows self.__repr__ to
                 # be explicit about it instead of simply representing an
                 # empty POST
                 self._mark_post_parse_error()
@@ -230,21 +273,32 @@ class HttpRequest(object):
         else:
             self._post, self._files = QueryDict('', encoding=self._encoding), MultiValueDict()
 
-    ## File-like and iterator interface.
-    ##
-    ## Expects self._stream to be set to an appropriate source of bytes by
-    ## a corresponding request subclass (e.g. WSGIRequest).
-    ## Also when request data has already been read by request.POST or
-    ## request.body, self._stream points to a BytesIO instance
-    ## containing that data.
+    def close(self):
+        if hasattr(self, '_files'):
+            for f in chain.from_iterable(l[1] for l in self._files.lists()):
+                f.close()
+
+    # File-like and iterator interface.
+    #
+    # Expects self._stream to be set to an appropriate source of bytes by
+    # a corresponding request subclass (e.g. WSGIRequest).
+    # Also when request data has already been read by request.POST or
+    # request.body, self._stream points to a BytesIO instance
+    # containing that data.
 
     def read(self, *args, **kwargs):
         self._read_started = True
-        return self._stream.read(*args, **kwargs)
+        try:
+            return self._stream.read(*args, **kwargs)
+        except IOError as e:
+            six.reraise(UnreadablePostError, UnreadablePostError(*e.args), sys.exc_info()[2])
 
     def readline(self, *args, **kwargs):
         self._read_started = True
-        return self._stream.readline(*args, **kwargs)
+        try:
+            return self._stream.readline(*args, **kwargs)
+        except IOError as e:
+            six.reraise(UnreadablePostError, UnreadablePostError(*e.args), sys.exc_info()[2])
 
     def xreadlines(self):
         while True:
@@ -261,26 +315,37 @@ class HttpRequest(object):
 
 class QueryDict(MultiValueDict):
     """
-    A specialized MultiValueDict that takes a query string when initialized.
-    This is immutable unless you create a copy of it.
+    A specialized MultiValueDict which represents a query string.
 
-    Values retrieved from this class are converted from the given encoding
+    A QueryDict can be used to represent GET or POST data. It subclasses
+    MultiValueDict since keys in such data can be repeated, for instance
+    in the data from a form with a <select multiple> field.
+
+    By default QueryDicts are immutable, though the copy() method
+    will always return a mutable copy.
+
+    Both keys and values set on this class are converted from the given encoding
     (DEFAULT_CHARSET by default) to unicode.
     """
+
     # These are both reset in __init__, but is specified here at the class
     # level so that unpickling will have valid values
     _mutable = True
     _encoding = None
 
-    def __init__(self, query_string, mutable=False, encoding=None):
+    def __init__(self, query_string=None, mutable=False, encoding=None):
         super(QueryDict, self).__init__()
         if not encoding:
             encoding = settings.DEFAULT_CHARSET
         self.encoding = encoding
         if six.PY3:
             if isinstance(query_string, bytes):
-                # query_string contains URL-encoded data, a subset of ASCII.
-                query_string = query_string.decode()
+                # query_string normally contains URL-encoded data, a subset of ASCII.
+                try:
+                    query_string = query_string.decode(encoding)
+                except UnicodeDecodeError:
+                    # ... but some user agents are misbehaving :-(
+                    query_string = query_string.decode('iso-8859-1')
             for key, value in parse_qsl(query_string or '',
                                         keep_blank_values=True,
                                         encoding=encoding):
@@ -288,8 +353,12 @@ class QueryDict(MultiValueDict):
         else:
             for key, value in parse_qsl(query_string or '',
                                         keep_blank_values=True):
+                try:
+                    value = value.decode(encoding)
+                except UnicodeDecodeError:
+                    value = value.decode('iso-8859-1')
                 self.appendlist(force_text(key, encoding, errors='replace'),
-                                force_text(value, encoding, errors='replace'))
+                                value)
         self._mutable = mutable
 
     @property
@@ -390,8 +459,8 @@ class QueryDict(MultiValueDict):
             encode = lambda k, v: urlencode({k: v})
         for k, list_ in self.lists():
             k = force_bytes(k, self.encoding)
-            output.extend([encode(k, force_bytes(v, self.encoding))
-                           for v in list_])
+            output.extend(encode(k, force_bytes(v, self.encoding))
+                          for v in list_)
         return '&'.join(output)
 
 
@@ -458,9 +527,30 @@ def bytes_to_text(s, encoding):
         return s
 
 
+def split_domain_port(host):
+    """
+    Return a (domain, port) tuple from a given host.
+
+    Returned domain is lower-cased. If the host is invalid, the domain will be
+    empty.
+    """
+    host = host.lower()
+
+    if not host_validation_re.match(host):
+        return '', ''
+
+    if host[-1] == ']':
+        # It's an IPv6 address without a port.
+        return host, ''
+    bits = host.rsplit(':', 1)
+    if len(bits) == 2:
+        return tuple(bits)
+    return bits[0], ''
+
+
 def validate_host(host, allowed_hosts):
     """
-    Validate the given host header value for this site.
+    Validate the given host for this site.
 
     Check that the host looks valid and matches a host or host pattern in the
     given list of ``allowed_hosts``. Any pattern beginning with a period
@@ -468,32 +558,23 @@ def validate_host(host, allowed_hosts):
     ``example.com`` and any subdomain), ``*`` matches anything, and anything
     else must match exactly.
 
+    Note: This function assumes that the given host is lower-cased and has
+    already had the port, if any, stripped off.
+
     Return ``True`` for a valid host, ``False`` otherwise.
 
     """
-    # All validation is case-insensitive
-    host = host.lower()
-
-    # Basic sanity check
-    if not host_validation_re.match(host):
-        return False
-
-    # Validate only the domain part.
-    if host[-1] == ']':
-        # It's an IPv6 address without a port.
-        domain = host
-    else:
-        domain = host.rsplit(':', 1)[0]
+    host = host[:-1] if host.endswith('.') else host
 
     for pattern in allowed_hosts:
         pattern = pattern.lower()
         match = (
             pattern == '*' or
             pattern.startswith('.') and (
-                domain.endswith(pattern) or domain == pattern[1:]
-                ) or
-            pattern == domain
-            )
+                host.endswith(pattern) or host == pattern[1:]
+            ) or
+            pattern == host
+        )
         if match:
             return True
 

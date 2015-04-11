@@ -46,11 +46,11 @@ USE_TZ = False
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
 
-# Languages we provide translations for, out of the box. The language name
-# should be the utf-8 encoded local name for the language.
+# Languages we provide translations for, out of the box.
 LANGUAGES = (
     ('af', gettext_noop('Afrikaans')),
     ('ar', gettext_noop('Arabic')),
+    ('ast', gettext_noop('Asturian')),
     ('az', gettext_noop('Azerbaijani')),
     ('bg', gettext_noop('Bulgarian')),
     ('be', gettext_noop('Belarusian')),
@@ -64,6 +64,7 @@ LANGUAGES = (
     ('de', gettext_noop('German')),
     ('el', gettext_noop('Greek')),
     ('en', gettext_noop('English')),
+    ('en-au', gettext_noop('Australian English')),
     ('en-gb', gettext_noop('British English')),
     ('eo', gettext_noop('Esperanto')),
     ('es', gettext_noop('Spanish')),
@@ -76,7 +77,7 @@ LANGUAGES = (
     ('fa', gettext_noop('Persian')),
     ('fi', gettext_noop('Finnish')),
     ('fr', gettext_noop('French')),
-    ('fy-nl', gettext_noop('Frisian')),
+    ('fy', gettext_noop('Frisian')),
     ('ga', gettext_noop('Irish')),
     ('gl', gettext_noop('Galician')),
     ('he', gettext_noop('Hebrew')),
@@ -85,6 +86,7 @@ LANGUAGES = (
     ('hu', gettext_noop('Hungarian')),
     ('ia', gettext_noop('Interlingua')),
     ('id', gettext_noop('Indonesian')),
+    ('io', gettext_noop('Ido')),
     ('is', gettext_noop('Icelandic')),
     ('it', gettext_noop('Italian')),
     ('ja', gettext_noop('Japanese')),
@@ -99,10 +101,13 @@ LANGUAGES = (
     ('mk', gettext_noop('Macedonian')),
     ('ml', gettext_noop('Malayalam')),
     ('mn', gettext_noop('Mongolian')),
+    ('mr', gettext_noop('Marathi')),
+    ('my', gettext_noop('Burmese')),
     ('nb', gettext_noop('Norwegian Bokmal')),
     ('ne', gettext_noop('Nepali')),
     ('nl', gettext_noop('Dutch')),
     ('nn', gettext_noop('Norwegian Nynorsk')),
+    ('os', gettext_noop('Ossetic')),
     ('pa', gettext_noop('Punjabi')),
     ('pl', gettext_noop('Polish')),
     ('pt', gettext_noop('Portuguese')),
@@ -126,17 +131,25 @@ LANGUAGES = (
     ('ur', gettext_noop('Urdu')),
     ('vi', gettext_noop('Vietnamese')),
     ('zh-cn', gettext_noop('Simplified Chinese')),
+    ('zh-hans', gettext_noop('Simplified Chinese')),
+    ('zh-hant', gettext_noop('Traditional Chinese')),
     ('zh-tw', gettext_noop('Traditional Chinese')),
 )
 
 # Languages using BiDi (right-to-left) layout
-LANGUAGES_BIDI = ("he", "ar", "fa")
+LANGUAGES_BIDI = ("he", "ar", "fa", "ur")
 
 # If you set this to False, Django will make some optimizations so as not
 # to load the internationalization machinery.
 USE_I18N = True
 LOCALE_PATHS = ()
+
+# Settings for language cookie
 LANGUAGE_COOKIE_NAME = 'django_language'
+LANGUAGE_COOKIE_AGE = None
+LANGUAGE_COOKIE_DOMAIN = None
+LANGUAGE_COOKIE_PATH = '/'
+
 
 # If you set this to True, Django will format dates, numbers and calendars
 # according to user current locale.
@@ -157,9 +170,6 @@ FILE_CHARSET = 'utf-8'
 
 # Email address that error messages come from.
 SERVER_EMAIL = 'root@localhost'
-
-# Whether to send broken-link emails.
-SEND_BROKEN_LINK_EMAILS = False
 
 # Database connection info. If left empty, will default to the dummy backend.
 DATABASES = {}
@@ -183,6 +193,10 @@ EMAIL_PORT = 25
 EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+EMAIL_SSL_CERTFILE = None
+EMAIL_SSL_KEYFILE = None
+EMAIL_TIMEOUT = None
 
 # List of strings representing installed apps.
 INSTALLED_APPS = ()
@@ -196,7 +210,7 @@ TEMPLATE_DIRS = ()
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.Loader',
     'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
+    # 'django.template.loaders.eggs.Loader',
 )
 
 # List of processors used by RequestContext to populate the context.
@@ -204,17 +218,19 @@ TEMPLATE_LOADERS = (
 # only parameter and returns a dictionary to add to the context.
 TEMPLATE_CONTEXT_PROCESSORS = (
     'django.contrib.auth.context_processors.auth',
-    'django.core.context_processors.debug',
-    'django.core.context_processors.i18n',
-    'django.core.context_processors.media',
-    'django.core.context_processors.static',
-    'django.core.context_processors.tz',
-#    'django.core.context_processors.request',
+    'django.template.context_processors.debug',
+    'django.template.context_processors.i18n',
+    'django.template.context_processors.media',
+    'django.template.context_processors.static',
+    'django.template.context_processors.tz',
+    # 'django.template.context_processors.request',
     'django.contrib.messages.context_processors.messages',
 )
 
 # Output to use in template system for invalid (e.g. misspelled) variables.
 TEMPLATE_STRING_IF_INVALID = ''
+
+TEMPLATES = []
 
 # Default email address to use for various automated correspondence from
 # the site managers.
@@ -251,13 +267,8 @@ ABSOLUTE_URL_OVERRIDES = {}
 # Example: ('/home/html', '/var/www')
 ALLOWED_INCLUDE_ROOTS = ()
 
-# If this is a admin settings module, this should be a list of
-# settings modules (in the format 'foo.bar.baz') for which this admin
-# is an admin.
-ADMIN_FOR = ()
-
 # List of compiled regular expression objects representing URLs that need not
-# be reported when SEND_BROKEN_LINK_EMAILS is True. Here are a few examples:
+# be reported by BrokenLinkEmailsMiddleware. Here are a few examples:
 #    import re
 #    IGNORABLE_404_URLS = (
 #        re.compile(r'^/apple-touch-icon.*\.png$'),
@@ -286,7 +297,7 @@ MEDIA_URL = ''
 
 # Absolute path to the directory static files should be collected to.
 # Example: "/var/www/example.com/static/"
-STATIC_ROOT = ''
+STATIC_ROOT = None
 
 # URL that handles the static files served from STATIC_ROOT.
 # Example: "http://example.com/static/", "http://static.example.com/"
@@ -300,7 +311,7 @@ FILE_UPLOAD_HANDLERS = (
 
 # Maximum size, in bytes, of a request before it will be streamed to the
 # file system instead of into memory.
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440 # i.e. 2.5 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # i.e. 2.5 MB
 
 # Directory in which upload streamed files will be temporarily saved. A value of
 # `None` will make Django use the operating system's default temporary directory
@@ -310,6 +321,11 @@ FILE_UPLOAD_TEMP_DIR = None
 # The numeric mode to set newly-uploaded files to. The value should be a mode
 # you'd pass directly to os.chmod; see http://docs.python.org/lib/os-file-dir.html.
 FILE_UPLOAD_PERMISSIONS = None
+
+# The numeric mode to assign to newly-created directories, when uploading files.
+# The value should be a mode as you'd pass to os.chmod;
+# see http://docs.python.org/lib/os-file-dir.html.
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = None
 
 # Python module path where user will place custom format definition.
 # The directory where this setting is pointing should contain subdirectories
@@ -353,11 +369,11 @@ SHORT_DATETIME_FORMAT = 'm/d/Y P'
 # http://docs.python.org/library/datetime.html#strftime-behavior
 # * Note that these format strings are different from the ones to display dates
 DATE_INPUT_FORMATS = (
-    '%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y', # '2006-10-25', '10/25/2006', '10/25/06'
-    '%b %d %Y', '%b %d, %Y',            # 'Oct 25 2006', 'Oct 25, 2006'
-    '%d %b %Y', '%d %b, %Y',            # '25 Oct 2006', '25 Oct, 2006'
-    '%B %d %Y', '%B %d, %Y',            # 'October 25 2006', 'October 25, 2006'
-    '%d %B %Y', '%d %B, %Y',            # '25 October 2006', '25 October, 2006'
+    '%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y',  # '2006-10-25', '10/25/2006', '10/25/06'
+    '%b %d %Y', '%b %d, %Y',             # 'Oct 25 2006', 'Oct 25, 2006'
+    '%d %b %Y', '%d %b, %Y',             # '25 Oct 2006', '25 Oct, 2006'
+    '%B %d %Y', '%B %d, %Y',             # 'October 25 2006', 'October 25, 2006'
+    '%d %B %Y', '%d %B, %Y',             # '25 October 2006', '25 October, 2006'
 )
 
 # Default formats to be used when parsing times from input boxes, in order
@@ -366,6 +382,7 @@ DATE_INPUT_FORMATS = (
 # * Note that these format strings are different from the ones to display dates
 TIME_INPUT_FORMATS = (
     '%H:%M:%S',     # '14:30:59'
+    '%H:%M:%S.%f',  # '14:30:59.000200'
     '%H:%M',        # '14:30'
 )
 
@@ -406,10 +423,6 @@ NUMBER_GROUPING = 0
 # Thousand separator symbol
 THOUSAND_SEPARATOR = ','
 
-# Do you want to manage transactions manually?
-# Hint: you really don't!
-TRANSACTIONS_MANAGED = False
-
 # The tablespaces to use for each model when not specified otherwise.
 DEFAULT_TABLESPACE = ''
 DEFAULT_INDEX_TABLESPACE = ''
@@ -444,29 +457,38 @@ SECURE_PROXY_SSL_HEADER = None
 # response phase the middleware will be applied in reverse order.
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-#     'django.middleware.http.ConditionalGetMiddleware',
-#     'django.middleware.gzip.GZipMiddleware',
 )
 
 ############
 # SESSIONS #
 ############
 
-SESSION_CACHE_ALIAS = 'default'                         # Cache to store session data if using the cache session backend.
-SESSION_COOKIE_NAME = 'sessionid'                       # Cookie name. This can be whatever you want.
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7 * 2               # Age of cookie, in seconds (default: 2 weeks).
-SESSION_COOKIE_DOMAIN = None                            # A string like ".example.com", or None for standard domain cookie.
-SESSION_COOKIE_SECURE = False                           # Whether the session cookie should be secure (https:// only).
-SESSION_COOKIE_PATH = '/'                               # The path of the session cookie.
-SESSION_COOKIE_HTTPONLY = True                          # Whether to use the non-RFC standard httpOnly flag (IE, FF3+, others)
-SESSION_SAVE_EVERY_REQUEST = False                      # Whether to save the session data on every request.
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False                 # Whether a user's session cookie expires when the Web browser is closed.
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # The module to store session data
-SESSION_FILE_PATH = None                                # Directory to store session files if using the file session module. If None, the backend will use a sensible default.
+# Cache to store session data if using the cache session backend.
+SESSION_CACHE_ALIAS = 'default'
+# Cookie name. This can be whatever you want.
+SESSION_COOKIE_NAME = 'sessionid'
+# Age of cookie, in seconds (default: 2 weeks).
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7 * 2
+# A string like ".example.com", or None for standard domain cookie.
+SESSION_COOKIE_DOMAIN = None
+# Whether the session cookie should be secure (https:// only).
+SESSION_COOKIE_SECURE = False
+# The path of the session cookie.
+SESSION_COOKIE_PATH = '/'
+# Whether to use the non-RFC standard httpOnly flag (IE, FF3+, others)
+SESSION_COOKIE_HTTPONLY = True
+# Whether to save the session data on every request.
+SESSION_SAVE_EVERY_REQUEST = False
+# Whether a user's session cookie expires when the Web browser is closed.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+# The module to store session data
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# Directory to store session files if using the file session module. If None,
+# the backend will use a sensible default.
+SESSION_FILE_PATH = None
+# class to serialize session data
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 
 #########
 # CACHE #
@@ -481,16 +503,6 @@ CACHES = {
 CACHE_MIDDLEWARE_KEY_PREFIX = ''
 CACHE_MIDDLEWARE_SECONDS = 600
 CACHE_MIDDLEWARE_ALIAS = 'default'
-
-####################
-# COMMENTS         #
-####################
-
-COMMENTS_ALLOW_PROFANITIES = False
-
-# The profanities that will trigger a validation error in
-# CommentDetailsForm.clean_comment. All of these should be in lowercase.
-PROFANITIES_LIST = ()
 
 ##################
 # AUTHENTICATION #
@@ -515,6 +527,7 @@ PASSWORD_RESET_TIMEOUT_DAYS = 3
 PASSWORD_HASHERS = (
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
     'django.contrib.auth.hashers.BCryptPasswordHasher',
     'django.contrib.auth.hashers.SHA1PasswordHasher',
     'django.contrib.auth.hashers.MD5PasswordHasher',
@@ -539,9 +552,11 @@ CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
 
 # Settings for CSRF cookie.
 CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_AGE = 60 * 60 * 24 * 7 * 52
 CSRF_COOKIE_DOMAIN = None
 CSRF_COOKIE_PATH = '/'
 CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
 
 ############
 # MESSAGES #
@@ -558,7 +573,7 @@ MESSAGE_STORAGE = 'django.contrib.messages.storage.fallback.FallbackStorage'
 ###########
 
 # The callable to use to configure logging
-LOGGING_CONFIG = 'django.utils.log.dictConfig'
+LOGGING_CONFIG = 'logging.config.dictConfig'
 
 # Custom logging configuration.
 LOGGING = {}
@@ -572,7 +587,11 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'django.views.debug.SafeExceptionReporterFil
 ###########
 
 # The name of the class to use to run the test suite
-TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner'
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
+
+# Apps that don't need to be serialized at test database creation time
+# (only apps with migrations are to start with)
+TEST_NON_SERIALIZED_APPS = []
 
 ############
 # FIXTURES #
@@ -596,5 +615,33 @@ STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
+    # 'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
+
+##############
+# MIGRATIONS #
+##############
+
+# Migration module overrides for apps, by app label.
+MIGRATION_MODULES = {}
+
+#################
+# SYSTEM CHECKS #
+#################
+
+# List of all issues generated by system checks that should be silenced. Light
+# issues like warnings, infos or debugs will not generate a message. Silencing
+# serious issues like errors and criticals does not result in hiding the
+# message, but Django will not stop you from e.g. running server.
+SILENCED_SYSTEM_CHECKS = []
+
+#######################
+# SECURITY MIDDLEWARE #
+#######################
+SECURE_BROWSER_XSS_FILTER = False
+SECURE_CONTENT_TYPE_NOSNIFF = False
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_SECONDS = 0
+SECURE_REDIRECT_EXEMPT = []
+SECURE_SSL_HOST = None
+SECURE_SSL_REDIRECT = False

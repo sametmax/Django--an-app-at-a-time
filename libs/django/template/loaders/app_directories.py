@@ -3,34 +3,15 @@ Wrapper for loading templates from "templates" directories in INSTALLED_APPS
 packages.
 """
 
-import os
-import sys
+import io
 
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import SuspiciousFileOperation
 from django.template.base import TemplateDoesNotExist
-from django.template.loader import BaseLoader
+from django.template.utils import get_app_template_dirs
 from django.utils._os import safe_join
-from django.utils.importlib import import_module
-from django.utils import six
 
-# At compile time, cache the directories to search.
-if not six.PY3:
-    fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-app_template_dirs = []
-for app in settings.INSTALLED_APPS:
-    try:
-        mod = import_module(app)
-    except ImportError as e:
-        raise ImproperlyConfigured('ImportError %s: %s' % (app, e.args[0]))
-    template_dir = os.path.join(os.path.dirname(mod.__file__), 'templates')
-    if os.path.isdir(template_dir):
-        if not six.PY3:
-            template_dir = template_dir.decode(fs_encoding)
-        app_template_dirs.append(template_dir)
+from .base import Loader as BaseLoader
 
-# It won't change, so convert it to a tuple to save memory.
-app_template_dirs = tuple(app_template_dirs)
 
 class Loader(BaseLoader):
     is_usable = True
@@ -42,22 +23,20 @@ class Loader(BaseLoader):
         template dirs are excluded from the result set, for security reasons.
         """
         if not template_dirs:
-            template_dirs = app_template_dirs
+            template_dirs = get_app_template_dirs('templates')
         for template_dir in template_dirs:
             try:
                 yield safe_join(template_dir, template_name)
-            except UnicodeDecodeError:
-                # The template dir name was a bytestring that wasn't valid UTF-8.
-                raise
-            except ValueError:
-                # The joined path was located outside of template_dir.
+            except SuspiciousFileOperation:
+                # The joined path was located outside of this template_dir
+                # (it might be inside another one, so this isn't fatal).
                 pass
 
     def load_template_source(self, template_name, template_dirs=None):
         for filepath in self.get_template_sources(template_name, template_dirs):
             try:
-                with open(filepath, 'rb') as fp:
-                    return (fp.read().decode(settings.FILE_CHARSET), filepath)
+                with io.open(filepath, encoding=self.engine.file_charset) as fp:
+                    return fp.read(), filepath
             except IOError:
                 pass
         raise TemplateDoesNotExist(template_name)

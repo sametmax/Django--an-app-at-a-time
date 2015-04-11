@@ -1,7 +1,7 @@
-import os
-import sys
+import subprocess
 
-from django.db.backends import BaseDatabaseClient
+from django.db.backends.base.client import BaseDatabaseClient
+
 
 class DatabaseClient(BaseDatabaseClient):
     executable_name = 'psql'
@@ -16,8 +16,4 @@ class DatabaseClient(BaseDatabaseClient):
         if settings_dict['PORT']:
             args.extend(["-p", str(settings_dict['PORT'])])
         args += [settings_dict['NAME']]
-        if os.name == 'nt':
-            sys.exit(os.system(" ".join(args)))
-        else:
-            os.execvp(self.executable_name, args)
-
+        subprocess.call(args)

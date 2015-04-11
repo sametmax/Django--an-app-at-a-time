@@ -1,10 +1,12 @@
-from ctypes import c_uint, byref
-from django.contrib.gis.geos.geometry import GEOSGeometry
-from django.contrib.gis.geos.libgeos import get_pointer_arr, GEOM_PTR
-from django.contrib.gis.geos.linestring import LinearRing
+from ctypes import byref, c_uint
+
 from django.contrib.gis.geos import prototypes as capi
+from django.contrib.gis.geos.geometry import GEOSGeometry
+from django.contrib.gis.geos.libgeos import GEOM_PTR, get_pointer_arr
+from django.contrib.gis.geos.linestring import LinearRing
 from django.utils import six
-from django.utils.six.moves import xrange
+from django.utils.six.moves import range
+
 
 class Polygon(GEOSGeometry):
     _minlength = 1
@@ -17,12 +19,14 @@ class Polygon(GEOSGeometry):
 
         Examples of initialization, where shell, hole1, and hole2 are
         valid LinearRing geometries:
+        >>> from django.contrib.gis.geos import LinearRing, Polygon
+        >>> shell = hole1 = hole2 = LinearRing()
         >>> poly = Polygon(shell, hole1, hole2)
         >>> poly = Polygon(shell, (hole1, hole2))
 
-        Example where a tuple parameters are used:
+        >>> # Example where a tuple parameters are used:
         >>> poly = Polygon(((0, 0), (0, 10), (10, 10), (0, 10), (0, 0)),
-                           ((4, 4), (4, 6), (6, 6), (6, 4), (4, 4)))
+        ...                ((4, 4), (4, 6), (6, 6), (6, 4), (4, 4)))
         """
         if not args:
             raise TypeError('Must provide at least one LinearRing, or a tuple, to initialize a Polygon.')
@@ -35,18 +39,18 @@ class Polygon(GEOSGeometry):
         # If initialized as Polygon(shell, (LinearRing, LinearRing)) [for backward-compatibility]
         if n_holes == 1 and isinstance(init_holes[0], (tuple, list)):
             if len(init_holes[0]) == 0:
-                init_holes  = ()
-                n_holes     = 0
+                init_holes = ()
+                n_holes = 0
             elif isinstance(init_holes[0][0], LinearRing):
-                init_holes  = init_holes[0]
-                n_holes     = len(init_holes)
+                init_holes = init_holes[0]
+                n_holes = len(init_holes)
 
         polygon = self._create_polygon(n_holes + 1, (ext_ring,) + init_holes)
         super(Polygon, self).__init__(polygon, **kwargs)
 
     def __iter__(self):
         "Iterates over each ring in the polygon."
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             yield self[i]
 
     def __len__(self):
@@ -63,7 +67,7 @@ class Polygon(GEOSGeometry):
                                     (x0, y0, x0, y1, x1, y1, x1, y0, x0, y0))
         return Polygon(((x0, y0), (x0, y1), (x1, y1), (x1, y0), (x0, y0)))
 
-    ### These routines are needed for list-like operation w/ListMixin ###
+    # ### These routines are needed for list-like operation w/ListMixin ###
     def _create_polygon(self, length, items):
         # Instantiate LinearRing objects if necessary, but don't clone them yet
         # _construct_ring will throw a TypeError if a parameter isn't a valid ring
@@ -95,9 +99,11 @@ class Polygon(GEOSGeometry):
         else:
             return capi.geom_clone(g.ptr)
 
-    def _construct_ring(self, param, msg='Parameter must be a sequence of LinearRings or objects that can initialize to LinearRings'):
+    def _construct_ring(self, param, msg=(
+            'Parameter must be a sequence of LinearRings or objects that can initialize to LinearRings')):
         "Helper routine for trying to construct a ring from the given parameter."
-        if isinstance(param, LinearRing): return param
+        if isinstance(param, LinearRing):
+            return param
         try:
             ring = LinearRing(param)
             return ring
@@ -110,7 +116,8 @@ class Polygon(GEOSGeometry):
         prev_ptr = self.ptr
         srid = self.srid
         self.ptr = self._create_polygon(length, items)
-        if srid: self.srid = srid
+        if srid:
+            self.srid = srid
         capi.destroy_geom(prev_ptr)
 
     def _get_single_internal(self, index):
@@ -129,7 +136,7 @@ class Polygon(GEOSGeometry):
             return capi.get_extring(self.ptr)
         else:
             # Getting the interior ring, have to subtract 1 from the index.
-            return capi.get_intring(self.ptr, index-1)
+            return capi.get_intring(self.ptr, index - 1)
 
     def _get_single_external(self, index):
         return GEOSGeometry(capi.geom_clone(self._get_single_internal(index)), srid=self.srid)
@@ -137,7 +144,7 @@ class Polygon(GEOSGeometry):
     _set_single = GEOSGeometry._set_single_rebuild
     _assign_extended_slice = GEOSGeometry._assign_extended_slice_rebuild
 
-    #### Polygon Properties ####
+    # #### Polygon Properties ####
     @property
     def num_interior_rings(self):
         "Returns the number of interior rings."
@@ -159,12 +166,12 @@ class Polygon(GEOSGeometry):
     @property
     def tuple(self):
         "Gets the tuple for each ring in this Polygon."
-        return tuple([self[i].tuple for i in xrange(len(self))])
+        return tuple(self[i].tuple for i in range(len(self)))
     coords = tuple
 
     @property
     def kml(self):
         "Returns the KML representation of this Polygon."
-        inner_kml = ''.join(["<innerBoundaryIs>%s</innerBoundaryIs>" % self[i+1].kml
-                             for i in xrange(self.num_interior_rings)])
+        inner_kml = ''.join("<innerBoundaryIs>%s</innerBoundaryIs>" % self[i + 1].kml
+            for i in range(self.num_interior_rings))
         return "<Polygon><outerBoundaryIs>%s</outerBoundaryIs>%s</Polygon>" % (self[0].kml, inner_kml)

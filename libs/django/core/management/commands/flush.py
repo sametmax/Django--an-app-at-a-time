@@ -1,54 +1,61 @@
-from optparse import make_option
+from __future__ import unicode_literals
 
-from django.conf import settings
-from django.db import connections, router, transaction, models, DEFAULT_DB_ALIAS
+import sys
+from importlib import import_module
+
+from django.apps import apps
 from django.core.management import call_command
-from django.core.management.base import NoArgsCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError
 from django.core.management.color import no_style
-from django.core.management.sql import sql_flush, emit_post_sync_signal
-from django.utils.importlib import import_module
+from django.core.management.sql import emit_post_migrate_signal, sql_flush
+from django.db import DEFAULT_DB_ALIAS, connections, router, transaction
+from django.utils import six
 from django.utils.six.moves import input
 
 
-class Command(NoArgsCommand):
-    option_list = NoArgsCommand.option_list + (
-        make_option('--noinput', action='store_false', dest='interactive', default=True,
-            help='Tells Django to NOT prompt the user for input of any kind.'),
-        make_option('--database', action='store', dest='database',
-            default=DEFAULT_DB_ALIAS, help='Nominates a database to flush. '
-                'Defaults to the "default" database.'),
-        make_option('--no-initial-data', action='store_false', dest='load_initial_data', default=True,
- 		            help='Tells Django not to load any initial data after database synchronization.'),
-    )
-    help = ('Returns the database to the state it was in immediately after '
-           'syncdb was executed. This means that all data will be removed '
-           'from the database, any post-synchronization handlers will be '
-           're-executed, and the initial_data fixture will be re-installed.')
+class Command(BaseCommand):
+    help = ('Removes ALL DATA from the database, including data added during '
+           'migrations. Unmigrated apps will also have their initial_data '
+           'fixture reloaded. Does not achieve a "fresh install" state.')
 
-    def handle_noargs(self, **options):
-        db = options.get('database')
-        connection = connections[db]
-        verbosity = int(options.get('verbosity'))
+    def add_arguments(self, parser):
+        parser.add_argument('--noinput', action='store_false', dest='interactive', default=True,
+            help='Tells Django to NOT prompt the user for input of any kind.')
+        parser.add_argument('--database', action='store', dest='database',
+            default=DEFAULT_DB_ALIAS,
+            help='Nominates a database to flush. Defaults to the "default" database.')
+        parser.add_argument('--no-initial-data', action='store_false',
+            dest='load_initial_data', default=True,
+            help='Tells Django not to load any initial data after database synchronization.')
+
+    def handle(self, **options):
+        database = options.get('database')
+        connection = connections[database]
+        verbosity = options.get('verbosity')
         interactive = options.get('interactive')
-        # 'reset_sequences' is a stealth option
+        # The following are stealth options used by Django's internals.
         reset_sequences = options.get('reset_sequences', True)
+        allow_cascade = options.get('allow_cascade', False)
+        inhibit_post_migrate = options.get('inhibit_post_migrate', False)
 
         self.style = no_style()
 
         # Import the 'management' module within each installed app, to register
         # dispatcher events.
-        for app_name in settings.INSTALLED_APPS:
+        for app_config in apps.get_app_configs():
             try:
-                import_module('.management', app_name)
+                import_module('.management', app_config.name)
             except ImportError:
                 pass
 
-        sql_list = sql_flush(self.style, connection, only_django=True, reset_sequences=reset_sequences)
+        sql_list = sql_flush(self.style, connection, only_django=True,
+                             reset_sequences=reset_sequences,
+                             allow_cascade=allow_cascade)
 
         if interactive:
             confirm = input("""You have requested a flush of the database.
 This will IRREVERSIBLY DESTROY all data currently in the %r database,
-and return each table to the state it was in after syncdb.
+and return each table to an empty state.
 Are you sure you want to do this?
 
     Type 'yes' to continue, or 'no' to cancel: """ % connection.settings_dict['NAME'])
@@ -57,36 +64,42 @@ Are you sure you want to do this?
 
         if confirm == 'yes':
             try:
-                cursor = connection.cursor()
-                for sql in sql_list:
-                    cursor.execute(sql)
+                with transaction.atomic(using=database,
+                                        savepoint=connection.features.can_rollback_ddl):
+                    with connection.cursor() as cursor:
+                        for sql in sql_list:
+                            cursor.execute(sql)
             except Exception as e:
-                transaction.rollback_unless_managed(using=db)
-                raise CommandError("""Database %s couldn't be flushed. Possible reasons:
-  * The database isn't running or isn't configured correctly.
-  * At least one of the expected database tables doesn't exist.
-  * The SQL was invalid.
-Hint: Look at the output of 'django-admin.py sqlflush'. That's the SQL this command wasn't able to run.
-The full error: %s""" % (connection.settings_dict['NAME'], e))
-            transaction.commit_unless_managed(using=db)
+                new_msg = (
+                    "Database %s couldn't be flushed. Possible reasons:\n"
+                    "  * The database isn't running or isn't configured correctly.\n"
+                    "  * At least one of the expected database tables doesn't exist.\n"
+                    "  * The SQL was invalid.\n"
+                    "Hint: Look at the output of 'django-admin sqlflush'. "
+                    "That's the SQL this command wasn't able to run.\n"
+                    "The full error: %s") % (connection.settings_dict['NAME'], e)
+                six.reraise(CommandError, CommandError(new_msg), sys.exc_info()[2])
 
-            # Emit the post sync signal. This allows individual
-            # applications to respond as if the database had been
-            # sync'd from scratch.
-            all_models = []
-            for app in models.get_apps():
-                all_models.extend([
-                    m for m in models.get_models(app, include_auto_created=True)
-                    if router.allow_syncdb(db, m)
-                ])
-            emit_post_sync_signal(set(all_models), verbosity, interactive, db)
+            if not inhibit_post_migrate:
+                self.emit_post_migrate(verbosity, interactive, database)
 
             # Reinstall the initial_data fixture.
-            kwargs = options.copy()
-            kwargs['database'] = db
             if options.get('load_initial_data'):
-                # Reinstall the initial_data fixture.
-                call_command('loaddata', 'initial_data', **options)
-
+                # Reinstall the initial_data fixture for apps without migrations.
+                from django.db.migrations.executor import MigrationExecutor
+                executor = MigrationExecutor(connection)
+                app_options = options.copy()
+                for app_label in executor.loader.unmigrated_apps:
+                    app_options['app_label'] = app_label
+                    call_command('loaddata', 'initial_data', **app_options)
         else:
             self.stdout.write("Flush cancelled.\n")
+
+    @staticmethod
+    def emit_post_migrate(verbosity, interactive, database):
+        # Emit the post migrate signal. This allows individual applications to
+        # respond as if the database had been migrated from scratch.
+        all_models = []
+        for app_config in apps.get_app_configs():
+            all_models.extend(router.get_migratable_models(app_config, database, include_auto_created=True))
+        emit_post_migrate_signal(set(all_models), verbosity, interactive, database)

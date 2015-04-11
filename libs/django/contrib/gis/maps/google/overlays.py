@@ -1,10 +1,15 @@
-from django.contrib.gis.geos import fromstr, Point, LineString, LinearRing, Polygon
-from django.utils.functional import total_ordering
-from django.utils.safestring import mark_safe
+from __future__ import unicode_literals
+
+from django.contrib.gis.geos import (
+    LinearRing, LineString, Point, Polygon, fromstr,
+)
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
+from django.utils.functional import total_ordering
+from django.utils.html import html_safe
 
 
+@html_safe
 @python_2_unicode_compatible
 class GEvent(object):
     """
@@ -52,8 +57,10 @@ class GEvent(object):
 
     def __str__(self):
         "Returns the parameter part of a GEvent."
-        return mark_safe('"%s", %s' %(self.event, self.action))
+        return '"%s", %s' % (self.event, self.action)
 
+
+@html_safe
 @python_2_unicode_compatible
 class GOverlayBase(object):
     def __init__(self):
@@ -61,7 +68,7 @@ class GOverlayBase(object):
 
     def latlng_from_coords(self, coords):
         "Generates a JavaScript array of GLatLng objects for the given coordinates."
-        return '[%s]' % ','.join(['new GLatLng(%s,%s)' % (y, x) for x, y in coords])
+        return '[%s]' % ','.join('new GLatLng(%s,%s)' % (y, x) for x, y in coords)
 
     def add_event(self, event):
         "Attaches a GEvent to the overlay object."
@@ -69,7 +76,8 @@ class GOverlayBase(object):
 
     def __str__(self):
         "The string representation is the JavaScript API call."
-        return mark_safe('%s(%s)' % (self.__class__.__name__, self.js_params))
+        return '%s(%s)' % (self.__class__.__name__, self.js_params)
+
 
 class GPolygon(GOverlayBase):
     """
@@ -102,8 +110,10 @@ class GPolygon(GOverlayBase):
           fill_opacity:
             The opacity of the polygon fill.  Defaults to 0.4.
         """
-        if isinstance(poly, six.string_types): poly = fromstr(poly)
-        if isinstance(poly, (tuple, list)): poly = Polygon(poly)
+        if isinstance(poly, six.string_types):
+            poly = fromstr(poly)
+        if isinstance(poly, (tuple, list)):
+            poly = Polygon(poly)
         if not isinstance(poly, Polygon):
             raise TypeError('GPolygon may only initialize on GEOS Polygons.')
 
@@ -128,6 +138,7 @@ class GPolygon(GOverlayBase):
         return '%s, "%s", %s, %s, "%s", %s' % (self.points, self.stroke_color, self.stroke_weight, self.stroke_opacity,
                                                self.fill_color, self.fill_opacity)
 
+
 class GPolyline(GOverlayBase):
     """
     A Python wrapper for the Google GPolyline object.  For more information
@@ -151,9 +162,11 @@ class GPolyline(GOverlayBase):
           opacity:
             The opacity of the polyline, between 0 and 1.  Defaults to 1.
         """
-        # If a GEOS geometry isn't passed in, try to contsruct one.
-        if isinstance(geom, six.string_types): geom = fromstr(geom)
-        if isinstance(geom, (tuple, list)): geom = Polygon(geom)
+        # If a GEOS geometry isn't passed in, try to construct one.
+        if isinstance(geom, six.string_types):
+            geom = fromstr(geom)
+        if isinstance(geom, (tuple, list)):
+            geom = Polygon(geom)
         # Generating the lat/lng coordinate pairs.
         if isinstance(geom, (LineString, LinearRing)):
             self.latlngs = self.latlng_from_coords(geom.coords)
@@ -249,6 +262,7 @@ class GIcon(object):
         # equal hash(GIcon('varname')).
         return hash(self.__class__) ^ hash(self.varname)
 
+
 class GMarker(GOverlayBase):
     """
     A Python wrapper for the Google GMarker object.  For more information
@@ -282,8 +296,10 @@ class GMarker(GOverlayBase):
            Draggable option for GMarker, disabled by default.
         """
         # If a GEOS geometry isn't passed in, try to construct one.
-        if isinstance(geom, six.string_types): geom = fromstr(geom)
-        if isinstance(geom, (tuple, list)): geom = Point(geom)
+        if isinstance(geom, six.string_types):
+            geom = fromstr(geom)
+        if isinstance(geom, (tuple, list)):
+            geom = Point(geom)
         if isinstance(geom, Point):
             self.latlng = self.latlng_from_coords(geom.coords)
         else:
@@ -297,13 +313,16 @@ class GMarker(GOverlayBase):
         super(GMarker, self).__init__()
 
     def latlng_from_coords(self, coords):
-        return 'new GLatLng(%s,%s)' %(coords[1], coords[0])
+        return 'new GLatLng(%s,%s)' % (coords[1], coords[0])
 
     def options(self):
         result = []
-        if self.title: result.append('title: "%s"' % self.title)
-        if self.icon: result.append('icon: %s' % self.icon.varname)
-        if self.draggable: result.append('draggable: true')
+        if self.title:
+            result.append('title: "%s"' % self.title)
+        if self.icon:
+            result.append('icon: %s' % self.icon.varname)
+        if self.draggable:
+            result.append('draggable: true')
         return '{%s}' % ','.join(result)
 
     @property

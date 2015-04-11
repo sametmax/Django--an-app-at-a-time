@@ -29,7 +29,11 @@ import tempfile
 # sys.getfilesystemencoding() git us the file system encoding which can be
 # different for Windows, Mac or Linux)
 FS_ENCODING = sys.getfilesystemencoding()
-THIS_FILE = __file__.decode(FS_ENCODING)
+try:
+    THIS_FILE = __file__.decode(FS_ENCODING)
+except AttributeError: 
+    # In Python 3, __file__ is already decoded
+    THIS_FILE = __file__
 
 # We create dynamically these settings, giving us the absolute path
 # to the project directory, the root directory containing all our work
@@ -38,8 +42,12 @@ PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(THIS_FILE)))
 ROOT_DIR = os.path.dirname(PROJECT_DIR)
 APPS_DIR = os.path.join(ROOT_DIR, 'apps')
 LIBS_DIR = os.path.join(ROOT_DIR, 'libs')
-TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
 
+try:
+    TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
+except AttributeError: 
+    # In Python 3, __file__ is already decoded
+    TEMP_DIR = tempfile.gettempdir()
 
 # We add the apps and libs directory to the PYTHON PATH, so we can import each
 # package without prefixing them with the parent package name. This mimic the

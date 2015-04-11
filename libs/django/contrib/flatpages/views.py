@@ -1,10 +1,9 @@
 from django.conf import settings
 from django.contrib.flatpages.models import FlatPage
-from django.contrib.sites.models import get_current_site
-from django.core.xheaders import populate_xheaders
+from django.contrib.sites.shortcuts import get_current_site
 from django.http import Http404, HttpResponse, HttpResponsePermanentRedirect
 from django.shortcuts import get_object_or_404
-from django.template import loader, RequestContext
+from django.template import loader
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_protect
 
@@ -18,6 +17,8 @@ DEFAULT_TEMPLATE = 'flatpages/default.html'
 # or a redirect is required for authentication, the 404 needs to be returned
 # without any CSRF checks. Therefore, we only
 # CSRF protect the internal implementation.
+
+
 def flatpage(request, url):
     """
     Public interface to the flat page view.
@@ -34,16 +35,17 @@ def flatpage(request, url):
     site_id = get_current_site(request).id
     try:
         f = get_object_or_404(FlatPage,
-            url__exact=url, sites__id__exact=site_id)
+            url=url, sites=site_id)
     except Http404:
         if not url.endswith('/') and settings.APPEND_SLASH:
             url += '/'
             f = get_object_or_404(FlatPage,
-                url__exact=url, sites__id__exact=site_id)
+                url=url, sites=site_id)
             return HttpResponsePermanentRedirect('%s/' % request.path)
         else:
             raise
     return render_flatpage(request, f)
+
 
 @csrf_protect
 def render_flatpage(request, f):
@@ -56,9 +58,9 @@ def render_flatpage(request, f):
         from django.contrib.auth.views import redirect_to_login
         return redirect_to_login(request.path)
     if f.template_name:
-        t = loader.select_template((f.template_name, DEFAULT_TEMPLATE))
+        template = loader.select_template((f.template_name, DEFAULT_TEMPLATE))
     else:
-        t = loader.get_template(DEFAULT_TEMPLATE)
+        template = loader.get_template(DEFAULT_TEMPLATE)
 
     # To avoid having to always use the "|safe" filter in flatpage templates,
     # mark the title and content as already safe (since they are raw HTML
@@ -66,9 +68,5 @@ def render_flatpage(request, f):
     f.title = mark_safe(f.title)
     f.content = mark_safe(f.content)
 
-    c = RequestContext(request, {
-        'flatpage': f,
-    })
-    response = HttpResponse(t.render(c))
-    populate_xheaders(request, response, FlatPage, f.id)
+    response = HttpResponse(template.render({'flatpage': f}, request))
     return response

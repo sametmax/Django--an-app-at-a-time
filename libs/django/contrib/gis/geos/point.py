@@ -1,9 +1,11 @@
 from ctypes import c_uint
+
+from django.contrib.gis.geos import prototypes as capi
 from django.contrib.gis.geos.error import GEOSException
 from django.contrib.gis.geos.geometry import GEOSGeometry
-from django.contrib.gis.geos import prototypes as capi
 from django.utils import six
-from django.utils.six.moves import xrange
+from django.utils.six.moves import range
+
 
 class Point(GEOSGeometry):
     _minlength = 2
@@ -50,7 +52,8 @@ class Point(GEOSGeometry):
         i = iter(coords)
         capi.cs_setx(cs, 0, next(i))
         capi.cs_sety(cs, 0, next(i))
-        if ndim == 3: capi.cs_setz(cs, 0, next(i))
+        if ndim == 3:
+            capi.cs_setz(cs, 0, next(i))
 
         return capi.create_point(cs)
 
@@ -69,14 +72,17 @@ class Point(GEOSGeometry):
 
     def __iter__(self):
         "Allows iteration over coordinates of this Point."
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             yield self[i]
 
     def __len__(self):
         "Returns the number of dimensions for this Point (either 0, 2 or 3)."
-        if self.empty: return 0
-        if self.hasz: return 3
-        else: return 2
+        if self.empty:
+            return 0
+        if self.hasz:
+            return 3
+        else:
+            return 2
 
     def _get_single_external(self, index):
         if index == 0:
@@ -123,7 +129,7 @@ class Point(GEOSGeometry):
     y = property(get_y, set_y)
     z = property(get_z, set_z)
 
-    ### Tuple setting and retrieval routines. ###
+    # ### Tuple setting and retrieval routines. ###
     def get_coords(self):
         "Returns a tuple of the point."
         return self._cs.tuple

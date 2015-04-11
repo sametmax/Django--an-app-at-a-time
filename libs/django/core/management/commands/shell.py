@@ -1,37 +1,50 @@
 import os
-from django.core.management.base import NoArgsCommand
-from optparse import make_option
+
+from django.core.management.base import BaseCommand
 
 
-class Command(NoArgsCommand):
+class Command(BaseCommand):
+    help = "Runs a Python interactive interpreter. Tries to use IPython or bpython, if one of them is available."
+    requires_system_checks = False
     shells = ['ipython', 'bpython']
 
-    option_list = NoArgsCommand.option_list + (
-        make_option('--plain', action='store_true', dest='plain',
-            help='Tells Django to use plain Python, not IPython or bpython.'),
-        make_option('-i', '--interface', action='store', type='choice', choices=shells,
-                    dest='interface',
-            help='Specify an interactive interpreter interface. Available options: "ipython" and "bpython"'),
+    def add_arguments(self, parser):
+        parser.add_argument('--plain', action='store_true', dest='plain',
+            help='Tells Django to use plain Python, not IPython or bpython.')
+        parser.add_argument('--no-startup', action='store_true', dest='no_startup',
+            help='When using plain Python, ignore the PYTHONSTARTUP environment variable and ~/.pythonrc.py script.')
+        parser.add_argument('-i', '--interface', choices=self.shells, dest='interface',
+            help='Specify an interactive interpreter interface. Available options: "ipython" and "bpython"')
 
-    )
-    help = "Runs a Python interactive interpreter. Tries to use IPython or bpython, if one of them is available."
-    requires_model_validation = False
+    def _ipython_pre_011(self):
+        """Start IPython pre-0.11"""
+        from IPython.Shell import IPShell
+        shell = IPShell(argv=[])
+        shell.mainloop()
+
+    def _ipython_pre_100(self):
+        """Start IPython pre-1.0.0"""
+        from IPython.frontend.terminal.ipapp import TerminalIPythonApp
+        app = TerminalIPythonApp.instance()
+        app.initialize(argv=[])
+        app.start()
+
+    def _ipython(self):
+        """Start IPython >= 1.0"""
+        from IPython import start_ipython
+        start_ipython(argv=[])
 
     def ipython(self):
-        try:
-            from IPython import embed
-            embed()
-        except ImportError:
-            # IPython < 0.11
-            # Explicitly pass an empty list as arguments, because otherwise
-            # IPython would use sys.argv from this script.
+        """Start any version of IPython"""
+        for ip in (self._ipython, self._ipython_pre_100, self._ipython_pre_011):
             try:
-                from IPython.Shell import IPShell
-                shell = IPShell(argv=[])
-                shell.mainloop()
+                ip()
             except ImportError:
-                # IPython not found at all, raise ImportError
-                raise
+                pass
+            else:
+                return
+        # no IPython, raise ImportError
+        raise ImportError("No IPython")
 
     def bpython(self):
         import bpython
@@ -47,21 +60,13 @@ class Command(NoArgsCommand):
                 pass
         raise ImportError
 
-    def handle_noargs(self, **options):
-        # XXX: (Temporary) workaround for ticket #1796: force early loading of all
-        # models from installed apps.
-        from django.db.models.loading import get_models
-        get_models()
-
-        use_plain = options.get('plain', False)
-        interface = options.get('interface', None)
-
+    def handle(self, **options):
         try:
-            if use_plain:
+            if options['plain']:
                 # Don't bother loading IPython, because the user wants plain Python.
                 raise ImportError
 
-            self.run_shell(shell=interface)
+            self.run_shell(shell=options['interface'])
         except ImportError:
             import code
             # Set up a dictionary to serve as the environment for the shell, so
@@ -81,13 +86,16 @@ class Command(NoArgsCommand):
 
             # We want to honor both $PYTHONSTARTUP and .pythonrc.py, so follow system
             # conventions and get $PYTHONSTARTUP first then .pythonrc.py.
-            if not use_plain:
-                for pythonrc in (os.environ.get("PYTHONSTARTUP"),
-                                 os.path.expanduser('~/.pythonrc.py')):
-                    if pythonrc and os.path.isfile(pythonrc):
-                        try:
-                            with open(pythonrc) as handle:
-                                exec(compile(handle.read(), pythonrc, 'exec'))
-                        except NameError:
-                            pass
+            if not options['no_startup']:
+                for pythonrc in (os.environ.get("PYTHONSTARTUP"), '~/.pythonrc.py'):
+                    if not pythonrc:
+                        continue
+                    pythonrc = os.path.expanduser(pythonrc)
+                    if not os.path.isfile(pythonrc):
+                        continue
+                    try:
+                        with open(pythonrc) as handle:
+                            exec(compile(handle.read(), pythonrc, 'exec'), imported_objects)
+                    except NameError:
+                        pass
             code.interact(local=imported_objects)

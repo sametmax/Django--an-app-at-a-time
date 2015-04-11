@@ -7,20 +7,25 @@ from __future__ import unicode_literals
 from io import BytesIO
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.core.files.uploadedfile import TemporaryUploadedFile, InMemoryUploadedFile
-from django.utils import importlib
+from django.core.files.uploadedfile import (
+    InMemoryUploadedFile, TemporaryUploadedFile,
+)
 from django.utils.encoding import python_2_unicode_compatible
+from django.utils.module_loading import import_string
 
-__all__ = ['UploadFileException','StopUpload', 'SkipFile', 'FileUploadHandler',
-           'TemporaryFileUploadHandler', 'MemoryFileUploadHandler',
-           'load_handler', 'StopFutureHandlers']
+__all__ = [
+    'UploadFileException', 'StopUpload', 'SkipFile', 'FileUploadHandler',
+    'TemporaryFileUploadHandler', 'MemoryFileUploadHandler', 'load_handler',
+    'StopFutureHandlers'
+]
+
 
 class UploadFileException(Exception):
     """
     Any error having to do with uploading files.
     """
     pass
+
 
 @python_2_unicode_compatible
 class StopUpload(UploadFileException):
@@ -41,11 +46,13 @@ class StopUpload(UploadFileException):
         else:
             return 'StopUpload: Consume request data, then halt.'
 
+
 class SkipFile(UploadFileException):
     """
     This exception is raised by an upload handler that wants to skip a given file.
     """
     pass
+
 
 class StopFutureHandlers(UploadFileException):
     """
@@ -54,17 +61,19 @@ class StopFutureHandlers(UploadFileException):
     """
     pass
 
+
 class FileUploadHandler(object):
     """
     Base class for streaming upload handlers.
     """
-    chunk_size = 64 * 2 ** 10 #: The default chunk size is 64 KB.
+    chunk_size = 64 * 2 ** 10  # : The default chunk size is 64 KB.
 
     def __init__(self, request=None):
         self.file_name = None
         self.content_type = None
         self.content_length = None
         self.charset = None
+        self.content_type_extra = None
         self.request = request
 
     def handle_raw_input(self, input_data, META, content_length, boundary, encoding=None):
@@ -85,7 +94,7 @@ class FileUploadHandler(object):
         """
         pass
 
-    def new_file(self, field_name, file_name, content_type, content_length, charset=None):
+    def new_file(self, field_name, file_name, content_type, content_length, charset=None, content_type_extra=None):
         """
         Signal that a new file has been started.
 
@@ -97,13 +106,14 @@ class FileUploadHandler(object):
         self.content_type = content_type
         self.content_length = content_length
         self.charset = charset
+        self.content_type_extra = content_type_extra
 
     def receive_data_chunk(self, raw_data, start):
         """
         Receive data from the streamed upload parser. ``start`` is the position
         in the file of the chunk.
         """
-        raise NotImplementedError()
+        raise NotImplementedError('subclasses of FileUploadHandler must provide a receive_data_chunk() method')
 
     def file_complete(self, file_size):
         """
@@ -112,7 +122,7 @@ class FileUploadHandler(object):
 
         Subclasses should return a valid ``UploadedFile`` object.
         """
-        raise NotImplementedError()
+        raise NotImplementedError('subclasses of FileUploadHandler must provide a file_complete() method')
 
     def upload_complete(self):
         """
@@ -120,6 +130,7 @@ class FileUploadHandler(object):
         that is necessary for this handler.
         """
         pass
+
 
 class TemporaryFileUploadHandler(FileUploadHandler):
     """
@@ -133,7 +144,7 @@ class TemporaryFileUploadHandler(FileUploadHandler):
         Create the file object to append to as data is coming in.
         """
         super(TemporaryFileUploadHandler, self).new_file(file_name, *args, **kwargs)
-        self.file = TemporaryUploadedFile(self.file_name, self.content_type, 0, self.charset)
+        self.file = TemporaryUploadedFile(self.file_name, self.content_type, 0, self.charset, self.content_type_extra)
 
     def receive_data_chunk(self, raw_data, start):
         self.file.write(raw_data)
@@ -142,6 +153,7 @@ class TemporaryFileUploadHandler(FileUploadHandler):
         self.file.seek(0)
         self.file.size = file_size
         return self.file
+
 
 class MemoryFileUploadHandler(FileUploadHandler):
     """
@@ -183,12 +195,13 @@ class MemoryFileUploadHandler(FileUploadHandler):
 
         self.file.seek(0)
         return InMemoryUploadedFile(
-            file = self.file,
-            field_name = self.field_name,
-            name = self.file_name,
-            content_type = self.content_type,
-            size = file_size,
-            charset = self.charset
+            file=self.file,
+            field_name=self.field_name,
+            name=self.file_name,
+            content_type=self.content_type,
+            size=file_size,
+            charset=self.charset,
+            content_type_extra=self.content_type_extra
         )
 
 
@@ -197,21 +210,10 @@ def load_handler(path, *args, **kwargs):
     Given a path to a handler, return an instance of that handler.
 
     E.g.::
+        >>> from django.http import HttpRequest
+        >>> request = HttpRequest()
         >>> load_handler('django.core.files.uploadhandler.TemporaryFileUploadHandler', request)
         <TemporaryFileUploadHandler object at 0x...>
 
     """
-    i = path.rfind('.')
-    module, attr = path[:i], path[i+1:]
-    try:
-        mod = importlib.import_module(module)
-    except ImportError as e:
-        raise ImproperlyConfigured('Error importing upload handler module %s: "%s"' % (module, e))
-    except ValueError:
-        raise ImproperlyConfigured('Error importing upload handler module.'
-            'Is FILE_UPLOAD_HANDLERS a correctly defined list or tuple?')
-    try:
-        cls = getattr(mod, attr)
-    except AttributeError:
-        raise ImproperlyConfigured('Module "%s" does not define a "%s" upload handler backend' % (module, attr))
-    return cls(*args, **kwargs)
+    return import_string(path)(*args, **kwargs)

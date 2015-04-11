@@ -1,16 +1,18 @@
+from importlib import import_module
+
 from django.core.management.base import CommandError
 from django.core.management.templates import TemplateCommand
-from django.utils.importlib import import_module
 
 
 class Command(TemplateCommand):
     help = ("Creates a Django app directory structure for the given app "
             "name in the current directory or optionally in the given "
             "directory.")
+    missing_args_message = "You must provide an application name."
 
-    def handle(self, app_name=None, target=None, **options):
-        if app_name is None:
-            raise CommandError("you must provide an app name")
+    def handle(self, **options):
+        app_name, target = options.pop('name'), options.pop('directory')
+        self.validate_name(app_name, "app")
 
         # Check that the app_name cannot be imported.
         try:

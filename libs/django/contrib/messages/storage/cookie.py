@@ -3,9 +3,9 @@ import json
 from django.conf import settings
 from django.contrib.messages.storage.base import BaseStorage, Message
 from django.http import SimpleCookie
-from django.utils.crypto import salted_hmac, constant_time_compare
-from django.utils.safestring import SafeData, mark_safe
 from django.utils import six
+from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.safestring import SafeData, mark_safe
 
 
 class MessageEncoder(json.JSONEncoder):
@@ -41,13 +41,14 @@ class MessageDecoder(json.JSONDecoder):
                 return Message(*obj[2:])
             return [self.process_messages(item) for item in obj]
         if isinstance(obj, dict):
-            return dict([(key, self.process_messages(value))
-                         for key, value in six.iteritems(obj)])
+            return {key: self.process_messages(value)
+                    for key, value in six.iteritems(obj)}
         return obj
 
     def decode(self, s, **kwargs):
         decoded = super(MessageDecoder, self).decode(s, **kwargs)
         return self.process_messages(decoded)
+
 
 class CookieStorage(BaseStorage):
     """
@@ -82,7 +83,9 @@ class CookieStorage(BaseStorage):
         """
         if encoded_data:
             response.set_cookie(self.cookie_name, encoded_data,
-                domain=settings.SESSION_COOKIE_DOMAIN)
+                domain=settings.SESSION_COOKIE_DOMAIN,
+                secure=settings.SESSION_COOKIE_SECURE or None,
+                httponly=settings.SESSION_COOKIE_HTTPONLY or None)
         else:
             response.delete_cookie(self.cookie_name,
                 domain=settings.SESSION_COOKIE_DOMAIN)
@@ -100,8 +103,9 @@ class CookieStorage(BaseStorage):
         encoded_data = self._encode(messages)
         if self.max_cookie_size:
             # data is going to be stored eventually by SimpleCookie, which
-            # adds it's own overhead, which we must account for.
-            cookie = SimpleCookie() # create outside the loop
+            # adds its own overhead, which we must account for.
+            cookie = SimpleCookie()  # create outside the loop
+
             def stored_length(val):
                 return len(cookie.value_encode(val)[1])
 
@@ -138,7 +142,7 @@ class CookieStorage(BaseStorage):
 
     def _decode(self, data):
         """
-        Safely decodes a encoded text stream back into a list of messages.
+        Safely decodes an encoded text stream back into a list of messages.
 
         If the encoded text stream contained an invalid hash or was in an
         invalid format, ``None`` is returned.

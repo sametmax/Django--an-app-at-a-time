@@ -1,7 +1,7 @@
 from django.conf import settings
-from django.contrib.sessions.backends.base import SessionBase, CreateError
-from django.core.cache import get_cache
-from django.utils.six.moves import xrange
+from django.contrib.sessions.backends.base import CreateError, SessionBase
+from django.core.cache import caches
+from django.utils.six.moves import range
 
 KEY_PREFIX = "django.contrib.sessions.cache"
 
@@ -11,7 +11,7 @@ class SessionStore(SessionBase):
     A cache-based session store.
     """
     def __init__(self, session_key=None):
-        self._cache = get_cache(settings.SESSION_CACHE_ALIAS)
+        self._cache = caches[settings.SESSION_CACHE_ALIAS]
         super(SessionStore, self).__init__(session_key)
 
     @property
@@ -36,7 +36,7 @@ class SessionStore(SessionBase):
         # because the cache is missing. So we try for a (large) number of times
         # and then raise an exception. That's the risk you shoulder if using
         # cache backing.
-        for i in xrange(10000):
+        for i in range(10000):
             self._session_key = self._get_new_session_key()
             try:
                 self.save(must_create=True)
@@ -44,7 +44,9 @@ class SessionStore(SessionBase):
                 continue
             self.modified = True
             return
-        raise RuntimeError("Unable to create a new session key.")
+        raise RuntimeError(
+            "Unable to create a new session key. "
+            "It is likely that the cache is unavailable.")
 
     def save(self, must_create=False):
         if must_create:

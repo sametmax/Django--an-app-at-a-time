@@ -38,7 +38,7 @@ import os
 # We get the path of all this directories from the "path" module. The path.py
 # file is something we code ourself, it's not provided by Django, but it's
 # very useful to avoid hard coding all these paths.
-from path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
+from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
 
 # Displays error messages on the Web page if something crashes

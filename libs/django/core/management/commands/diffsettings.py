@@ -1,17 +1,24 @@
-from django.core.management.base import NoArgsCommand
+from django.core.management.base import BaseCommand
+
 
 def module_to_dict(module, omittable=lambda k: k.startswith('_')):
-    "Converts a module namespace to a Python dictionary. Used by get_settings_diff."
-    return dict([(k, repr(v)) for k, v in module.__dict__.items() if not omittable(k)])
+    """Converts a module namespace to a Python dictionary."""
+    return {k: repr(v) for k, v in module.__dict__.items() if not omittable(k)}
 
-class Command(NoArgsCommand):
+
+class Command(BaseCommand):
     help = """Displays differences between the current settings.py and Django's
     default settings. Settings that don't appear in the defaults are
     followed by "###"."""
 
-    requires_model_validation = False
+    requires_system_checks = False
 
-    def handle_noargs(self, **options):
+    def add_arguments(self, parser):
+        parser.add_argument('--all', action='store_true', dest='all', default=False,
+            help='Display all settings, regardless of their value. '
+            'Default values are prefixed by "###".')
+
+    def handle(self, **options):
         # Inspired by Postfix's "postconf -n".
         from django.conf import settings, global_settings
 
@@ -22,9 +29,11 @@ class Command(NoArgsCommand):
         default_settings = module_to_dict(global_settings)
 
         output = []
-        for key in sorted(user_settings.keys()):
+        for key in sorted(user_settings):
             if key not in default_settings:
                 output.append("%s = %s  ###" % (key, user_settings[key]))
             elif user_settings[key] != default_settings[key]:
                 output.append("%s = %s" % (key, user_settings[key]))
+            elif options['all']:
+                output.append("### %s = %s" % (key, user_settings[key]))
         return '\n'.join(output)

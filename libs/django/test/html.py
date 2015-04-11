@@ -5,11 +5,10 @@ Comparing two html documents.
 from __future__ import unicode_literals
 
 import re
-from django.utils.encoding import force_text
-from django.utils.html_parser import HTMLParser, HTMLParseError
-from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
 
+from django.utils import six
+from django.utils.encoding import force_text, python_2_unicode_compatible
+from django.utils.html_parser import HTMLParseError, HTMLParser
 
 WHITESPACE = re.compile('\s+')
 
@@ -149,7 +148,7 @@ class RootElement(Element):
 
 
 class Parser(HTMLParser):
-    SELF_CLOSING_TAGS = ('br' , 'hr', 'input', 'img', 'meta', 'spacer',
+    SELF_CLOSING_TAGS = ('br', 'hr', 'input', 'img', 'meta', 'spacer',
         'link', 'frame', 'base', 'col')
 
     def __init__(self):
@@ -190,7 +189,7 @@ class Parser(HTMLParser):
             if name == "class"
             else (name, value)
             for name, value in attrs
-            ]
+        ]
         element = Element(tag, attrs)
         self.current.append(element)
         if tag not in self.SELF_CLOSING_TAGS:
@@ -222,7 +221,7 @@ def parse_html(html):
     """
     Takes a string that contains *valid* HTML and turns it into a Python object
     structure that can be easily compared against other HTML on semantic
-    equivilance. Syntactical differences like which quotation is used on
+    equivalence. Syntactical differences like which quotation is used on
     arguments will be ignored.
 
     """

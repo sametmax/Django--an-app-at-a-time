@@ -1,37 +1,54 @@
 from __future__ import unicode_literals
 
-import codecs
+import io
 import os
 import re
+import warnings
 
+from django.apps import apps
 from django.conf import settings
 from django.core.management.base import CommandError
-from django.db import models
-from django.db.models import get_models
-from django.utils._os import upath
+from django.db import models, router
+from django.utils.deprecation import RemovedInDjango19Warning
+from django.utils.version import get_docs_version
 
 
-def sql_create(app, style, connection):
+def check_for_migrations(app_config, connection):
+    # Inner import, else tests imports it too early as it needs settings
+    from django.db.migrations.loader import MigrationLoader
+    loader = MigrationLoader(connection)
+    if app_config.label in loader.migrated_apps:
+        raise CommandError(
+            "App '%s' has migrations. Only the sqlmigrate and sqlflush commands "
+            "can be used when an app has migrations." % app_config.label
+        )
+
+
+def sql_create(app_config, style, connection):
     "Returns a list of the CREATE TABLE SQL statements for the given app."
+
+    check_for_migrations(app_config, connection)
 
     if connection.settings_dict['ENGINE'] == 'django.db.backends.dummy':
         # This must be the "dummy" database backend, which means the user
         # hasn't set ENGINE for the database.
-        raise CommandError("Django doesn't know which syntax to use for your SQL statements,\n" +
-            "because you haven't properly specified the ENGINE setting for the database.\n" +
-            "see: https://docs.djangoproject.com/en/dev/ref/settings/#databases")
+        raise CommandError(
+            "Django doesn't know which syntax to use for your SQL statements,\n"
+            "because you haven't properly specified the ENGINE setting for the database.\n"
+            "see: https://docs.djangoproject.com/en/%s/ref/settings/#databases" % get_docs_version()
+        )
 
     # Get installed models, so we generate REFERENCES right.
     # We trim models from the current app so that the sqlreset command does not
     # generate invalid SQL (leaving models out of known_models is harmless, so
     # we can be conservative).
-    app_models = models.get_models(app, include_auto_created=True)
+    app_models = list(app_config.get_models(include_auto_created=True))
     final_output = []
     tables = connection.introspection.table_names()
-    known_models = set([model for model in connection.introspection.installed_models(tables) if model not in app_models])
+    known_models = set(model for model in connection.introspection.installed_models(tables) if model not in app_models)
     pending_references = {}
 
-    for model in app_models:
+    for model in router.get_migratable_models(app_config, connection.alias, include_auto_created=True):
         output, references = connection.creation.sql_create_model(model, style, known_models)
         final_output.extend(output)
         for refto, refs in references.items():
@@ -48,8 +65,8 @@ def sql_create(app, style, connection):
     if not_installed_models:
         alter_sql = []
         for model in not_installed_models:
-            alter_sql.extend(['-- ' + sql for sql in
-                connection.creation.sql_for_pending_references(model, style, pending_references)])
+            alter_sql.extend('-- ' + sql for sql in
+                connection.creation.sql_for_pending_references(model, style, pending_references))
         if alter_sql:
             final_output.append('-- The following references should be added but depend on non-existent tables:')
             final_output.extend(alter_sql)
@@ -57,52 +74,57 @@ def sql_create(app, style, connection):
     return final_output
 
 
-def sql_delete(app, style, connection):
+def sql_delete(app_config, style, connection, close_connection=True):
     "Returns a list of the DROP TABLE SQL statements for the given app."
+
+    check_for_migrations(app_config, connection)
 
     # This should work even if a connection isn't available
     try:
         cursor = connection.cursor()
-    except:
+    except Exception:
         cursor = None
 
-    # Figure out which tables already exist
-    if cursor:
-        table_names = connection.introspection.table_names(cursor)
-    else:
-        table_names = []
+    try:
+        # Figure out which tables already exist
+        if cursor:
+            table_names = connection.introspection.table_names(cursor)
+        else:
+            table_names = []
 
-    output = []
+        output = []
 
-    # Output DROP TABLE statements for standard application tables.
-    to_delete = set()
+        # Output DROP TABLE statements for standard application tables.
+        to_delete = set()
 
-    references_to_delete = {}
-    app_models = models.get_models(app, include_auto_created=True)
-    for model in app_models:
-        if cursor and connection.introspection.table_name_converter(model._meta.db_table) in table_names:
-            # The table exists, so it needs to be dropped
-            opts = model._meta
-            for f in opts.local_fields:
-                if f.rel and f.rel.to not in to_delete:
-                    references_to_delete.setdefault(f.rel.to, []).append((model, f))
+        references_to_delete = {}
+        app_models = router.get_migratable_models(app_config, connection.alias, include_auto_created=True)
+        for model in app_models:
+            if cursor and connection.introspection.table_name_converter(model._meta.db_table) in table_names:
+                # The table exists, so it needs to be dropped
+                opts = model._meta
+                for f in opts.local_fields:
+                    if f.rel and f.rel.to not in to_delete:
+                        references_to_delete.setdefault(f.rel.to, []).append((model, f))
 
-            to_delete.add(model)
+                to_delete.add(model)
 
-    for model in app_models:
-        if connection.introspection.table_name_converter(model._meta.db_table) in table_names:
-            output.extend(connection.creation.sql_destroy_model(model, references_to_delete, style))
+        for model in app_models:
+            if connection.introspection.table_name_converter(model._meta.db_table) in table_names:
+                output.extend(connection.creation.sql_destroy_model(model, references_to_delete, style))
+    finally:
+        # Close database connection explicitly, in case this output is being piped
+        # directly into a database client, to avoid locking issues.
+        if cursor and close_connection:
+            cursor.close()
+            connection.close()
 
-    # Close database connection explicitly, in case this output is being piped
-    # directly into a database client, to avoid locking issues.
-    if cursor:
-        cursor.close()
-        connection.close()
-
+    if not output:
+        output.append('-- App creates no tables in the database. Nothing to do.')
     return output[::-1]  # Reverse it, to deal with table dependencies.
 
 
-def sql_flush(style, connection, only_django=False, reset_sequences=True):
+def sql_flush(style, connection, only_django=False, reset_sequences=True, allow_cascade=False):
     """
     Returns a list of the SQL statements used to flush the database.
 
@@ -110,19 +132,22 @@ def sql_flush(style, connection, only_django=False, reset_sequences=True):
     models and are in INSTALLED_APPS will be included.
     """
     if only_django:
-        tables = connection.introspection.django_table_names(only_existing=True)
+        tables = connection.introspection.django_table_names(only_existing=True, include_views=False)
     else:
-        tables = connection.introspection.table_names()
+        tables = connection.introspection.table_names(include_views=False)
     seqs = connection.introspection.sequence_list() if reset_sequences else ()
-    statements = connection.ops.sql_flush(style, tables, seqs)
+    statements = connection.ops.sql_flush(style, tables, seqs, allow_cascade)
     return statements
 
 
-def sql_custom(app, style, connection):
+def sql_custom(app_config, style, connection):
     "Returns a list of the custom table modifying SQL statements for the given app."
+
+    check_for_migrations(app_config, connection)
+
     output = []
 
-    app_models = get_models(app)
+    app_models = router.get_migratable_models(app_config, connection.alias)
 
     for model in app_models:
         output.extend(custom_sql_for_model(model, style, connection))
@@ -130,20 +155,42 @@ def sql_custom(app, style, connection):
     return output
 
 
-def sql_indexes(app, style, connection):
+def sql_indexes(app_config, style, connection):
     "Returns a list of the CREATE INDEX SQL statements for all models in the given app."
+
+    check_for_migrations(app_config, connection)
+
     output = []
-    for model in models.get_models(app):
+    for model in router.get_migratable_models(app_config, connection.alias, include_auto_created=True):
         output.extend(connection.creation.sql_indexes_for_model(model, style))
     return output
 
 
-def sql_all(app, style, connection):
+def sql_destroy_indexes(app_config, style, connection):
+    "Returns a list of the DROP INDEX SQL statements for all models in the given app."
+
+    check_for_migrations(app_config, connection)
+
+    output = []
+    for model in router.get_migratable_models(app_config, connection.alias, include_auto_created=True):
+        output.extend(connection.creation.sql_destroy_indexes_for_model(model, style))
+    return output
+
+
+def sql_all(app_config, style, connection):
+
+    check_for_migrations(app_config, connection)
+
     "Returns a list of CREATE TABLE SQL, initial-data inserts, and CREATE INDEX SQL for the given module."
-    return sql_create(app, style, connection) + sql_custom(app, style, connection) + sql_indexes(app, style, connection)
+    return (
+        sql_create(app_config, style, connection) +
+        sql_custom(app_config, style, connection) +
+        sql_indexes(app_config, style, connection)
+    )
 
 
 def _split_statements(content):
+    # Private API only called from code that emits a RemovedInDjango19Warning.
     comment_re = re.compile(r"^((?:'[^']*'|[^'])*?)--.*$")
     statements = []
     statement = []
@@ -160,7 +207,18 @@ def _split_statements(content):
 
 def custom_sql_for_model(model, style, connection):
     opts = model._meta
-    app_dir = os.path.normpath(os.path.join(os.path.dirname(upath(models.get_app(model._meta.app_label).__file__)), 'sql'))
+    app_dirs = []
+    app_dir = apps.get_app_config(model._meta.app_label).path
+    app_dirs.append(os.path.normpath(os.path.join(app_dir, 'sql')))
+
+    # Deprecated location -- remove in Django 1.9
+    old_app_dir = os.path.normpath(os.path.join(app_dir, 'models/sql'))
+    if os.path.exists(old_app_dir):
+        warnings.warn("Custom SQL location '<app_label>/models/sql' is "
+                      "deprecated, use '<app_label>/sql' instead.",
+                      RemovedInDjango19Warning)
+        app_dirs.append(old_app_dir)
+
     output = []
 
     # Post-creation SQL should come before any initial SQL data is loaded.
@@ -173,23 +231,58 @@ def custom_sql_for_model(model, style, connection):
 
     # Find custom SQL, if it's available.
     backend_name = connection.settings_dict['ENGINE'].split('.')[-1]
-    sql_files = [os.path.join(app_dir, "%s.%s.sql" % (opts.object_name.lower(), backend_name)),
-                 os.path.join(app_dir, "%s.sql" % opts.object_name.lower())]
+    sql_files = []
+    for app_dir in app_dirs:
+        sql_files.append(os.path.join(app_dir, "%s.%s.sql" % (opts.model_name, backend_name)))
+        sql_files.append(os.path.join(app_dir, "%s.sql" % opts.model_name))
     for sql_file in sql_files:
         if os.path.exists(sql_file):
-            with codecs.open(sql_file, 'U', encoding=settings.FILE_CHARSET) as fp:
-                # Some backends can't execute more than one SQL statement at a time,
-                # so split into separate statements.
-                output.extend(_split_statements(fp.read()))
+            with io.open(sql_file, encoding=settings.FILE_CHARSET) as fp:
+                output.extend(connection.ops.prepare_sql_script(fp.read(), _allow_fallback=True))
     return output
 
 
-def emit_post_sync_signal(created_models, verbosity, interactive, db):
-    # Emit the post_sync signal for every application.
-    for app in models.get_apps():
-        app_name = app.__name__.split('.')[-2]
+def emit_pre_migrate_signal(create_models, verbosity, interactive, db):
+    # Emit the pre_migrate signal for every application.
+    for app_config in apps.get_app_configs():
+        if app_config.models_module is None:
+            continue
         if verbosity >= 2:
-            print("Running post-sync handlers for application %s" % app_name)
-        models.signals.post_syncdb.send(sender=app, app=app,
-            created_models=created_models, verbosity=verbosity,
-            interactive=interactive, db=db)
+            print("Running pre-migrate handlers for application %s" % app_config.label)
+        models.signals.pre_migrate.send(
+            sender=app_config,
+            app_config=app_config,
+            verbosity=verbosity,
+            interactive=interactive,
+            using=db)
+        # For backwards-compatibility -- remove in Django 1.9.
+        models.signals.pre_syncdb.send(
+            sender=app_config.models_module,
+            app=app_config.models_module,
+            create_models=create_models,
+            verbosity=verbosity,
+            interactive=interactive,
+            db=db)
+
+
+def emit_post_migrate_signal(created_models, verbosity, interactive, db):
+    # Emit the post_migrate signal for every application.
+    for app_config in apps.get_app_configs():
+        if app_config.models_module is None:
+            continue
+        if verbosity >= 2:
+            print("Running post-migrate handlers for application %s" % app_config.label)
+        models.signals.post_migrate.send(
+            sender=app_config,
+            app_config=app_config,
+            verbosity=verbosity,
+            interactive=interactive,
+            using=db)
+        # For backwards-compatibility -- remove in Django 1.9.
+        models.signals.post_syncdb.send(
+            sender=app_config.models_module,
+            app=app_config.models_module,
+            created_models=created_models,
+            verbosity=verbosity,
+            interactive=interactive,
+            db=db)

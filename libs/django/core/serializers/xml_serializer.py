@@ -4,14 +4,17 @@ XML serializer.
 
 from __future__ import unicode_literals
 
-from django.conf import settings
-from django.core.serializers import base
-from django.db import models, DEFAULT_DB_ALIAS
-from django.utils.xmlutils import SimplerXMLGenerator
-from django.utils.encoding import smart_text
 from xml.dom import pulldom
 from xml.sax import handler
 from xml.sax.expatreader import ExpatParser as _ExpatParser
+
+from django.apps import apps
+from django.conf import settings
+from django.core.serializers import base
+from django.db import DEFAULT_DB_ALIAS, models
+from django.utils.encoding import smart_text
+from django.utils.xmlutils import SimplerXMLGenerator
+
 
 class Serializer(base.Serializer):
     """
@@ -28,7 +31,7 @@ class Serializer(base.Serializer):
         """
         self.xml = SimplerXMLGenerator(self.stream, self.options.get("encoding", settings.DEFAULT_CHARSET))
         self.xml.startDocument()
-        self.xml.startElement("django-objects", {"version" : "1.0"})
+        self.xml.startElement("django-objects", {"version": "1.0"})
 
     def end_serialization(self):
         """
@@ -46,14 +49,11 @@ class Serializer(base.Serializer):
             raise base.SerializationError("Non-model object (%s) encountered during serialization" % type(obj))
 
         self.indent(1)
-        obj_pk = obj._get_pk_val()
-        if obj_pk is None:
-            attrs = {"model": smart_text(obj._meta),}
-        else:
-            attrs = {
-                "pk": smart_text(obj._get_pk_val()),
-                "model": smart_text(obj._meta),
-            }
+        attrs = {"model": smart_text(obj._meta)}
+        if not self.use_natural_primary_keys or not hasattr(obj, 'natural_key'):
+            obj_pk = obj._get_pk_val()
+            if obj_pk is not None:
+                attrs['pk'] = smart_text(obj_pk)
 
         self.xml.startElement("object", attrs)
 
@@ -71,8 +71,8 @@ class Serializer(base.Serializer):
         """
         self.indent(2)
         self.xml.startElement("field", {
-            "name" : field.name,
-            "type" : field.get_internal_type()
+            "name": field.name,
+            "type": field.get_internal_type()
         })
 
         # Get a "string version" of the object's data.
@@ -91,7 +91,7 @@ class Serializer(base.Serializer):
         self._start_relational_field(field)
         related_att = getattr(obj, field.get_attname())
         if related_att is not None:
-            if self.use_natural_keys and hasattr(field.rel.to, 'natural_key'):
+            if self.use_natural_foreign_keys and hasattr(field.rel.to, 'natural_key'):
                 related = getattr(obj, field.name)
                 # If related object has a natural key, use it
                 related = related.natural_key()
@@ -114,7 +114,7 @@ class Serializer(base.Serializer):
         """
         if field.rel.through._meta.auto_created:
             self._start_relational_field(field)
-            if self.use_natural_keys and hasattr(field.rel.to, 'natural_key'):
+            if self.use_natural_foreign_keys and hasattr(field.rel.to, 'natural_key'):
                 # If the objects in the m2m have a natural key, use it
                 def handle_m2m(value):
                     natural = value.natural_key()
@@ -128,7 +128,7 @@ class Serializer(base.Serializer):
             else:
                 def handle_m2m(value):
                     self.xml.addQuickElement("object", attrs={
-                        'pk' : smart_text(value._get_pk_val())
+                        'pk': smart_text(value._get_pk_val())
                     })
             for relobj in getattr(obj, field.name).iterator():
                 handle_m2m(relobj)
@@ -141,10 +141,11 @@ class Serializer(base.Serializer):
         """
         self.indent(2)
         self.xml.startElement("field", {
-            "name" : field.name,
-            "rel"  : field.rel.__class__.__name__,
-            "to"   : smart_text(field.rel.to._meta),
+            "name": field.name,
+            "rel": field.rel.__class__.__name__,
+            "to": smart_text(field.rel.to._meta),
         })
+
 
 class Deserializer(base.Deserializer):
     """
@@ -155,6 +156,7 @@ class Deserializer(base.Deserializer):
         super(Deserializer, self).__init__(stream_or_string, **options)
         self.event_stream = pulldom.parse(self.stream, self._make_parser())
         self.db = options.pop('using', DEFAULT_DB_ALIAS)
+        self.ignore = options.pop('ignorenonexistent', False)
 
     def _make_parser(self):
         """Create a hardened XML parser (no custom/external entities)."""
@@ -176,19 +178,17 @@ class Deserializer(base.Deserializer):
         Model = self._get_model_from_node(node, "model")
 
         # Start building a data dictionary from the object.
-        # If the node is missing the pk set it to None
-        if node.hasAttribute("pk"):
-            pk = node.getAttribute("pk")
-        else:
-            pk = None
-
-        data = {Model._meta.pk.attname : Model._meta.pk.to_python(pk)}
+        data = {}
+        if node.hasAttribute('pk'):
+            data[Model._meta.pk.attname] = Model._meta.pk.to_python(
+                node.getAttribute('pk'))
 
         # Also start building a dict of m2m data (this is saved as
         # {m2m_accessor_attribute : [list_of_related_objects]})
         m2m_data = {}
 
-        # Deseralize each field.
+        field_names = {f.name for f in Model._meta.get_fields()}
+        # Deserialize each field.
         for field_node in node.getElementsByTagName("field"):
             # If the field is missing the name attribute, bail (are you
             # sensing a pattern here?)
@@ -198,7 +198,9 @@ class Deserializer(base.Deserializer):
 
             # Get the field from the Model. This will raise a
             # FieldDoesNotExist if, well, the field doesn't exist, which will
-            # be propagated correctly.
+            # be propagated correctly unless ignorenonexistent=True is used.
+            if self.ignore and field_name not in field_names:
+                continue
             field = Model._meta.get_field(field_name)
 
             # As is usually the case, relation fields get the special treatment.
@@ -213,8 +215,10 @@ class Deserializer(base.Deserializer):
                     value = field.to_python(getInnerText(field_node).strip())
                 data[field.name] = value
 
+        obj = base.build_instance(Model, data, self.db)
+
         # Return a DeserializedObject so that the m2m data has a place to live.
-        return base.DeserializedObject(Model(**data), m2m_data)
+        return base.DeserializedObject(obj, m2m_data)
 
     def _handle_fk_field_node(self, node, field):
         """
@@ -271,17 +275,14 @@ class Deserializer(base.Deserializer):
         model_identifier = node.getAttribute(attr)
         if not model_identifier:
             raise base.DeserializationError(
-                "<%s> node is missing the required '%s' attribute" \
-                    % (node.nodeName, attr))
+                "<%s> node is missing the required '%s' attribute"
+                % (node.nodeName, attr))
         try:
-            Model = models.get_model(*model_identifier.split("."))
-        except TypeError:
-            Model = None
-        if Model is None:
+            return apps.get_model(model_identifier)
+        except (LookupError, TypeError):
             raise base.DeserializationError(
-                "<%s> node has invalid model identifier: '%s'" % \
-                    (node.nodeName, model_identifier))
-        return Model
+                "<%s> node has invalid model identifier: '%s'"
+                % (node.nodeName, model_identifier))
 
 
 def getInnerText(node):
@@ -296,7 +297,7 @@ def getInnerText(node):
         elif child.nodeType == child.ELEMENT_NODE:
             inner_text.extend(getInnerText(child))
         else:
-           pass
+            pass
     return "".join(inner_text)
 
 

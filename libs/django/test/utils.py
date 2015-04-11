@@ -1,24 +1,45 @@
+import logging
 import re
+import sys
+import time
 import warnings
-from xml.dom.minidom import parseString, Node
+from contextlib import contextmanager
+from functools import wraps
+from unittest import skipIf, skipUnless
+from xml.dom.minidom import Node, parseString
 
-from django.conf import settings, UserSettingsHolder
+from django.apps import apps
+from django.conf import UserSettingsHolder, settings
 from django.core import mail
-from django.template import Template, loader, TemplateDoesNotExist
-from django.template.loaders import cached
-from django.test.signals import template_rendered, setting_changed
-from django.utils.encoding import force_str
-from django.utils.functional import wraps
+from django.core.signals import request_started
+from django.db import reset_queries
+from django.http import request
+from django.template import Template
+from django.template.loaders import locmem
+from django.test.signals import setting_changed, template_rendered
 from django.utils import six
+from django.utils.deprecation import RemovedInDjango19Warning
+from django.utils.encoding import force_str
 from django.utils.translation import deactivate
+
+# Jinja2 doesn't run on Python 3.2 because it uses u-prefixed unicode strings.
+if sys.version_info[:2] != (3, 2):
+    try:
+        import jinja2
+    except ImportError:
+        jinja2 = None
+else:
+    jinja2 = None
 
 
 __all__ = (
-    'Approximate', 'ContextList',  'get_runner', 'override_settings',
+    'Approximate', 'ContextList', 'get_runner',
+    'modify_settings', 'override_settings',
+    'requires_tz_support',
     'setup_test_environment', 'teardown_test_environment',
 )
 
-RESTORE_LOADERS_ATTR = '_original_template_source_loaders'
+TZ_SUPPORT = hasattr(time, 'tzset')
 
 
 class Approximate(object):
@@ -55,6 +76,16 @@ class ContextList(list):
             return False
         return True
 
+    def keys(self):
+        """
+        Flattened keys of subcontexts.
+        """
+        keys = set()
+        for subcontext in self:
+            for dict in subcontext:
+                keys |= set(dict.keys())
+        return keys
+
 
 def instrumented_test_render(self, context):
     """
@@ -72,13 +103,16 @@ def setup_test_environment():
         - Set the email backend to the locmem email backend.
         - Setting the active locale to match the LANGUAGE_CODE setting.
     """
-    Template.original_render = Template._render
+    Template._original_render = Template._render
     Template._render = instrumented_test_render
 
-    mail.original_email_backend = settings.EMAIL_BACKEND
+    # Storing previous values in the settings module itself is problematic.
+    # Store them in arbitrary (but related) modules instead. See #20636.
+
+    mail._original_email_backend = settings.EMAIL_BACKEND
     settings.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
-    settings._original_allowed_hosts = settings.ALLOWED_HOSTS
+    request._original_allowed_hosts = settings.ALLOWED_HOSTS
     settings.ALLOWED_HOSTS = ['*']
 
     mail.outbox = []
@@ -93,34 +127,16 @@ def teardown_test_environment():
         - Restoring the email sending functions
 
     """
-    Template._render = Template.original_render
-    del Template.original_render
+    Template._render = Template._original_render
+    del Template._original_render
 
-    settings.EMAIL_BACKEND = mail.original_email_backend
-    del mail.original_email_backend
+    settings.EMAIL_BACKEND = mail._original_email_backend
+    del mail._original_email_backend
 
-    settings.ALLOWED_HOSTS = settings._original_allowed_hosts
-    del settings._original_allowed_hosts
+    settings.ALLOWED_HOSTS = request._original_allowed_hosts
+    del request._original_allowed_hosts
 
     del mail.outbox
-
-
-def get_warnings_state():
-    """
-    Returns an object containing the state of the warnings module
-    """
-    # There is no public interface for doing this, but this implementation of
-    # get_warnings_state and restore_warnings_state appears to work on Python
-    # 2.4 to 2.7.
-    return warnings.filters[:]
-
-
-def restore_warnings_state(state):
-    """
-    Restores the state of the warnings module when passed an object that was
-    returned by get_warnings_state()
-    """
-    warnings.filters = state[:]
 
 
 def get_runner(settings, test_runner_class=None):
@@ -138,42 +154,14 @@ def get_runner(settings, test_runner_class=None):
     return test_runner
 
 
-def setup_test_template_loader(templates_dict, use_cached_loader=False):
-    """
-    Changes Django to only find templates from within a dictionary (where each
-    key is the template name and each value is the corresponding template
-    content to return).
+class TestTemplateLoader(locmem.Loader):
 
-    Use meth:`restore_template_loaders` to restore the original loaders.
-    """
-    if hasattr(loader, RESTORE_LOADERS_ATTR):
-        raise Exception("loader.%s already exists" % RESTORE_LOADERS_ATTR)
-
-    def test_template_loader(template_name, template_dirs=None):
-        "A custom template loader that loads templates from a dictionary."
-        try:
-            return (templates_dict[template_name], "test:%s" % template_name)
-        except KeyError:
-            raise TemplateDoesNotExist(template_name)
-
-    if use_cached_loader:
-        template_loader = cached.Loader(('test_template_loader',))
-        template_loader._cached_loaders = (test_template_loader,)
-    else:
-        template_loader = test_template_loader
-
-    setattr(loader, RESTORE_LOADERS_ATTR, loader.template_source_loaders)
-    loader.template_source_loaders = (template_loader,)
-    return template_loader
-
-
-def restore_template_loaders():
-    """
-    Restores the original template loaders after
-    :meth:`setup_test_template_loader` has been run.
-    """
-    loader.template_source_loaders = getattr(loader, RESTORE_LOADERS_ATTR)
-    delattr(loader, RESTORE_LOADERS_ATTR)
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "django.test.utils.TestTemplateLoader was renamed to "
+            "django.template.loaders.locmem.Loader.",
+            RemovedInDjango19Warning, stacklevel=2)
+        super(TestTemplateLoader, self).__init__(*args, **kwargs)
 
 
 class override_settings(object):
@@ -185,7 +173,6 @@ class override_settings(object):
     """
     def __init__(self, **kwargs):
         self.options = kwargs
-        self.wrapped = settings._wrapped
 
     def __enter__(self):
         self.enable()
@@ -200,18 +187,7 @@ class override_settings(object):
                 raise Exception(
                     "Only subclasses of Django SimpleTestCase can be decorated "
                     "with override_settings")
-            original_pre_setup = test_func._pre_setup
-            original_post_teardown = test_func._post_teardown
-
-            def _pre_setup(innerself):
-                self.enable()
-                original_pre_setup(innerself)
-
-            def _post_teardown(innerself):
-                original_post_teardown(innerself)
-                self.disable()
-            test_func._pre_setup = _pre_setup
-            test_func._post_teardown = _post_teardown
+            self.save_options(test_func)
             return test_func
         else:
             @wraps(test_func)
@@ -220,21 +196,112 @@ class override_settings(object):
                     return test_func(*args, **kwargs)
         return inner
 
+    def save_options(self, test_func):
+        if test_func._overridden_settings is None:
+            test_func._overridden_settings = self.options
+        else:
+            # Duplicate dict to prevent subclasses from altering their parent.
+            test_func._overridden_settings = dict(
+                test_func._overridden_settings, **self.options)
+
     def enable(self):
+        # Keep this code at the beginning to leave the settings unchanged
+        # in case it raises an exception because INSTALLED_APPS is invalid.
+        if 'INSTALLED_APPS' in self.options:
+            try:
+                apps.set_installed_apps(self.options['INSTALLED_APPS'])
+            except Exception:
+                apps.unset_installed_apps()
+                raise
         override = UserSettingsHolder(settings._wrapped)
         for key, new_value in self.options.items():
             setattr(override, key, new_value)
+        self.wrapped = settings._wrapped
         settings._wrapped = override
         for key, new_value in self.options.items():
             setting_changed.send(sender=settings._wrapped.__class__,
-                                 setting=key, value=new_value)
+                                 setting=key, value=new_value, enter=True)
 
     def disable(self):
+        if 'INSTALLED_APPS' in self.options:
+            apps.unset_installed_apps()
         settings._wrapped = self.wrapped
+        del self.wrapped
         for key in self.options:
             new_value = getattr(settings, key, None)
             setting_changed.send(sender=settings._wrapped.__class__,
-                                 setting=key, value=new_value)
+                                 setting=key, value=new_value, enter=False)
+
+
+class modify_settings(override_settings):
+    """
+    Like override_settings, but makes it possible to append, prepend or remove
+    items instead of redefining the entire list.
+    """
+    def __init__(self, *args, **kwargs):
+        if args:
+            # Hack used when instantiating from SimpleTestCase.setUpClass.
+            assert not kwargs
+            self.operations = args[0]
+        else:
+            assert not args
+            self.operations = list(kwargs.items())
+
+    def save_options(self, test_func):
+        if test_func._modified_settings is None:
+            test_func._modified_settings = self.operations
+        else:
+            # Duplicate list to prevent subclasses from altering their parent.
+            test_func._modified_settings = list(
+                test_func._modified_settings) + self.operations
+
+    def enable(self):
+        self.options = {}
+        for name, operations in self.operations:
+            try:
+                # When called from SimpleTestCase.setUpClass, values may be
+                # overridden several times; cumulate changes.
+                value = self.options[name]
+            except KeyError:
+                value = list(getattr(settings, name, []))
+            for action, items in operations.items():
+                # items my be a single value or an iterable.
+                if isinstance(items, six.string_types):
+                    items = [items]
+                if action == 'append':
+                    value = value + [item for item in items if item not in value]
+                elif action == 'prepend':
+                    value = [item for item in items if item not in value] + value
+                elif action == 'remove':
+                    value = [item for item in value if item not in items]
+                else:
+                    raise ValueError("Unsupported action: %s" % action)
+            self.options[name] = value
+        super(modify_settings, self).enable()
+
+
+def override_system_checks(new_checks, deployment_checks=None):
+    """ Acts as a decorator. Overrides list of registered system checks.
+    Useful when you override `INSTALLED_APPS`, e.g. if you exclude `auth` app,
+    you also need to exclude its system checks. """
+
+    from django.core.checks.registry import registry
+
+    def outer(test_func):
+        @wraps(test_func)
+        def inner(*args, **kwargs):
+            old_checks = registry.registered_checks
+            registry.registered_checks = new_checks
+            old_deployment_checks = registry.deployment_checks
+            if deployment_checks is not None:
+                registry.deployment_checks = deployment_checks
+            try:
+                return test_func(*args, **kwargs)
+            finally:
+                registry.registered_checks = old_checks
+                registry.deployment_checks = old_deployment_checks
+        return inner
+    return outer
 
 
 def compare_xml(want, got):
@@ -246,12 +313,13 @@ def compare_xml(want, got):
     Based on http://codespeak.net/svn/lxml/trunk/src/lxml/doctestcompare.py
     """
     _norm_whitespace_re = re.compile(r'[ \t\n][ \t\n]+')
+
     def norm_whitespace(v):
         return _norm_whitespace_re.sub(' ', v)
 
     def child_text(element):
-        return ''.join([c.data for c in element.childNodes
-                        if c.nodeType == Node.TEXT_NODE])
+        return ''.join(c.data for c in element.childNodes
+                       if c.nodeType == Node.TEXT_NODE)
 
     def children(element):
         return [c for c in element.childNodes
@@ -285,8 +353,8 @@ def compare_xml(want, got):
                 return node
 
     want, got = strip_quotes(want, got)
-    want = want.replace('\\n','\n')
-    got = got.replace('\\n','\n')
+    want = want.replace('\\n', '\n')
+    got = got.replace('\\n', '\n')
 
     # If the string is not a complete xml document, we may need to add a
     # root element. This allow us to compare fragments, like "<foo/><bar/>"
@@ -332,5 +400,214 @@ def strip_quotes(want, got):
         got = got.strip()[2:-1]
     return want, got
 
+
 def str_prefix(s):
     return s % {'_': '' if six.PY3 else 'u'}
+
+
+class CaptureQueriesContext(object):
+    """
+    Context manager that captures queries executed by the specified connection.
+    """
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __iter__(self):
+        return iter(self.captured_queries)
+
+    def __getitem__(self, index):
+        return self.captured_queries[index]
+
+    def __len__(self):
+        return len(self.captured_queries)
+
+    @property
+    def captured_queries(self):
+        return self.connection.queries[self.initial_queries:self.final_queries]
+
+    def __enter__(self):
+        self.force_debug_cursor = self.connection.force_debug_cursor
+        self.connection.force_debug_cursor = True
+        self.initial_queries = len(self.connection.queries_log)
+        self.final_queries = None
+        request_started.disconnect(reset_queries)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.connection.force_debug_cursor = self.force_debug_cursor
+        request_started.connect(reset_queries)
+        if exc_type is not None:
+            return
+        self.final_queries = len(self.connection.queries_log)
+
+
+class ignore_warnings(object):
+    def __init__(self, **kwargs):
+        self.ignore_kwargs = kwargs
+        if 'message' in self.ignore_kwargs or 'module' in self.ignore_kwargs:
+            self.filter_func = warnings.filterwarnings
+        else:
+            self.filter_func = warnings.simplefilter
+
+    def __call__(self, decorated):
+        if isinstance(decorated, type):
+            # A class is decorated
+            saved_setUp = decorated.setUp
+            saved_tearDown = decorated.tearDown
+
+            def setUp(inner_self):
+                self.catch_warnings = warnings.catch_warnings()
+                self.catch_warnings.__enter__()
+                self.filter_func('ignore', **self.ignore_kwargs)
+                saved_setUp(inner_self)
+
+            def tearDown(inner_self):
+                saved_tearDown(inner_self)
+                self.catch_warnings.__exit__(*sys.exc_info())
+
+            decorated.setUp = setUp
+            decorated.tearDown = tearDown
+            return decorated
+        else:
+            @wraps(decorated)
+            def inner(*args, **kwargs):
+                with warnings.catch_warnings():
+                    self.filter_func('ignore', **self.ignore_kwargs)
+                    return decorated(*args, **kwargs)
+            return inner
+
+
+@contextmanager
+def patch_logger(logger_name, log_level):
+    """
+    Context manager that takes a named logger and the logging level
+    and provides a simple mock-like list of messages received
+    """
+    calls = []
+
+    def replacement(msg, *args, **kwargs):
+        calls.append(msg % args)
+    logger = logging.getLogger(logger_name)
+    orig = getattr(logger, log_level)
+    setattr(logger, log_level, replacement)
+    try:
+        yield calls
+    finally:
+        setattr(logger, log_level, orig)
+
+
+# On OSes that don't provide tzset (Windows), we can't set the timezone
+# in which the program runs. As a consequence, we must skip tests that
+# don't enforce a specific timezone (with timezone.override or equivalent),
+# or attempt to interpret naive datetimes in the default timezone.
+
+requires_tz_support = skipUnless(TZ_SUPPORT,
+        "This test relies on the ability to run a program in an arbitrary "
+        "time zone, but your operating system isn't able to do that.")
+
+
+@contextmanager
+def extend_sys_path(*paths):
+    """Context manager to temporarily add paths to sys.path."""
+    _orig_sys_path = sys.path[:]
+    sys.path.extend(paths)
+    try:
+        yield
+    finally:
+        sys.path = _orig_sys_path
+
+
+@contextmanager
+def captured_output(stream_name):
+    """Return a context manager used by captured_stdout/stdin/stderr
+    that temporarily replaces the sys stream *stream_name* with a StringIO.
+
+    Note: This function and the following ``captured_std*`` are copied
+          from CPython's ``test.support`` module."""
+    orig_stdout = getattr(sys, stream_name)
+    setattr(sys, stream_name, six.StringIO())
+    try:
+        yield getattr(sys, stream_name)
+    finally:
+        setattr(sys, stream_name, orig_stdout)
+
+
+def captured_stdout():
+    """Capture the output of sys.stdout:
+
+       with captured_stdout() as stdout:
+           print("hello")
+       self.assertEqual(stdout.getvalue(), "hello\n")
+    """
+    return captured_output("stdout")
+
+
+def captured_stderr():
+    """Capture the output of sys.stderr:
+
+       with captured_stderr() as stderr:
+           print("hello", file=sys.stderr)
+       self.assertEqual(stderr.getvalue(), "hello\n")
+    """
+    return captured_output("stderr")
+
+
+def captured_stdin():
+    """Capture the input to sys.stdin:
+
+       with captured_stdin() as stdin:
+           stdin.write('hello\n')
+           stdin.seek(0)
+           # call test code that consumes from sys.stdin
+           captured = input()
+       self.assertEqual(captured, "hello")
+    """
+    return captured_output("stdin")
+
+
+def reset_warning_registry():
+    """
+    Clear warning registry for all modules. This is required in some tests
+    because of a bug in Python that prevents warnings.simplefilter("always")
+    from always making warnings appear: http://bugs.python.org/issue4180
+
+    The bug was fixed in Python 3.4.2.
+    """
+    key = "__warningregistry__"
+    for mod in sys.modules.values():
+        if hasattr(mod, key):
+            getattr(mod, key).clear()
+
+
+@contextmanager
+def freeze_time(t):
+    """
+    Context manager to temporarily freeze time.time(). This temporarily
+    modifies the time function of the time module. Modules which import the
+    time function directly (e.g. `from time import time`) won't be affected
+    This isn't meant as a public API, but helps reduce some repetitive code in
+    Django's test suite.
+    """
+    _real_time = time.time
+    time.time = lambda: t
+    try:
+        yield
+    finally:
+        time.time = _real_time
+
+
+def require_jinja2(test_func):
+    """
+    Decorator to enable a Jinja2 template engine in addition to the regular
+    Django template engine for a test or skip it if Jinja2 isn't available.
+    """
+    test_func = skipIf(jinja2 is None, "this test requires jinja2")(test_func)
+    test_func = override_settings(TEMPLATES=[{
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+    }, {
+        'BACKEND': 'django.template.backends.jinja2.Jinja2',
+        'APP_DIRS': True,
+        'OPTIONS': {'keep_trailing_newline': True},
+    }])(test_func)
+    return test_func

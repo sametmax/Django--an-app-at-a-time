@@ -7,17 +7,26 @@ to_python() and the other necessary methods and everything will work
 seamlessly.
 """
 
+import warnings
+
+from django.utils.deprecation import RemovedInDjango20Warning
+
+
 class SubfieldBase(type):
     """
     A metaclass for custom Field subclasses. This ensures the model's attribute
     has the descriptor protocol attached to it.
     """
     def __new__(cls, name, bases, attrs):
+        warnings.warn("SubfieldBase has been deprecated. Use Field.from_db_value instead.",
+                  RemovedInDjango20Warning)
+
         new_class = super(SubfieldBase, cls).__new__(cls, name, bases, attrs)
         new_class.contribute_to_class = make_contrib(
             new_class, attrs.get('contribute_to_class')
         )
         return new_class
+
 
 class Creator(object):
     """
@@ -28,11 +37,12 @@ class Creator(object):
 
     def __get__(self, obj, type=None):
         if obj is None:
-            raise AttributeError('Can only be accessed via an instance.')
+            return self
         return obj.__dict__[self.field.name]
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.name] = self.field.to_python(value)
+
 
 def make_contrib(superclass, func=None):
     """
@@ -43,11 +53,11 @@ def make_contrib(superclass, func=None):
     case that the existing contribute_to_class() calls all the necessary
     superclass methods.
     """
-    def contribute_to_class(self, cls, name):
+    def contribute_to_class(self, cls, name, **kwargs):
         if func:
-            func(self, cls, name)
+            func(self, cls, name, **kwargs)
         else:
-            super(superclass, self).contribute_to_class(cls, name)
+            super(superclass, self).contribute_to_class(cls, name, **kwargs)
         setattr(cls, self.name, Creator(self))
 
     return contribute_to_class
