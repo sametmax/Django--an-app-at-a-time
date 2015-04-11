@@ -5,7 +5,7 @@ from django.conf.urls import patterns, url
 
 urlpatterns = patterns('',
 
-    # Cela dit à Djando d'appeler la fonction 'hello' du module 'views' de
+    # Cela dit à Django d'appeler la fonction 'hello' du module 'views' de
     # l'app 'app1_hello' pour toute URL.
     url(r'', 'app1_hello.views.hello'),
 
