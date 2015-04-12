@@ -4,10 +4,6 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 
-# This is required for the admin to work
-admin.autodiscover()
-
-
 urlpatterns = [
 
     # this display the admin on the url /admin/
