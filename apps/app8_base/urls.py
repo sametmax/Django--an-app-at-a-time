@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.views.generic import TemplateView
 
-
-
-urlpatterns = patterns('',
+urlpatterns = [
 
     url(r'example1/',
         TemplateView.as_view(template_name="app8_base/example_child.html"),
@@ -43,4 +41,4 @@ urlpatterns = patterns('',
     # This is all nested, and that's why it look packed, but it really is
     # just ordinary Python objects mixed together in a function call.
 
-)
+]
