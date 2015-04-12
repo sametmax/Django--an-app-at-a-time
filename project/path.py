@@ -2,13 +2,13 @@
 
 
 """
-    This module contains all the paths for alls this project directories, that
-    we created dynamically.
+    This module contains all the paths for alls this project's directories,
+    that we created dynamically.
 
     All paths are absolute, without symlink and in unicode.
 
     We also add the 'apps' and 'libs' directories to the PYTHON PATH, which
-    will make the imports much  easier.
+    will make the imports much easier.
 
 """
 
@@ -23,19 +23,19 @@ import tempfile
 # it renders it completly portable since all directory paths are dyncamically
 # generated instead of being hard coded.
 
-# We get the 'settings.py' file path (the __FILE__ variable contains
-# automatically the path of the current file) and we transform this string
-# in unicode in case you got non ASCII caracters in this name (
-# sys.getfilesystemencoding() git us the file system encoding which can be
+# We get the 'settings.py' file path (the __FILE__ variable automatically
+# contains the path of the current file) and we transform this string
+# to unicode in case you got non ASCII caracters in this name (
+# sys.getfilesystemencoding() gets us the file system encoding which can be
 # different for Windows, Mac or Linux)
 FS_ENCODING = sys.getfilesystemencoding()
 try:
     THIS_FILE = __file__.decode(FS_ENCODING)
-except AttributeError: 
+except AttributeError:
     # In Python 3, __file__ is already decoded
     THIS_FILE = __file__
 
-# We create dynamically these settings, giving us the absolute path
+# We dynamically create these settings, giving us the absolute path
 # to the project directory, the root directory containing all our work
 # and any other directory we might need
 PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(THIS_FILE)))
@@ -45,7 +45,7 @@ LIBS_DIR = os.path.join(ROOT_DIR, 'libs')
 
 try:
     TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
-except AttributeError: 
+except AttributeError:
     # In Python 3, __file__ is already decoded
     TEMP_DIR = tempfile.gettempdir()
 

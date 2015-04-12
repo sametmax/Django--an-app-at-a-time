@@ -10,7 +10,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 
-    # this display the admin on the url /admin/
+    # this displays the admin on the url /admin/
     url(r'^admin/', include(admin.site.urls)),
 
     # include all our apps, one by one

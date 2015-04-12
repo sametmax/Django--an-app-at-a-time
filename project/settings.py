@@ -5,10 +5,10 @@
 # This file contains settings for your whole project and is generated         #
 # automatically when you do "django-admin.py startproject".                   #
 #                                                                             #
-# Most values are Django settings, erasing the default values you can find in #
-# libs/django/conf/global_settings.py. A lot of original Django settings arez #
-# not changed so you'll have to refer to global_settings.py to know their     #
-# value.                                                                      #
+# Most values are Django settings, overwriting the default values you can     #
+# find in libs/django/conf/global_settings.py. A lot of original Django       #
+# settings are not changed so you'll have to refer to global_settings.py to   #
+# know their values.                                                          #
 #                                                                             #
 # Some values are for others Django apps.                                     #
 #                                                                             #
@@ -22,7 +22,7 @@
 # this purpose and do not reflect how a production site should do it.         #
 # I will specifically put a note when warning applys, and the first           #
 # warning is: "You should have several settings files in a real project       #
-# to seperate production, staging and developpement environnements"           #
+# to seperate production, staging and development environments"               #
 #                                                                             #
 ###############################################################################
 
@@ -30,7 +30,7 @@
 # Since it's a regular Python file, you can import stuff
 
 # This will force all string to be unicode strings, even if we don't
-# set the 'u'
+# set the 'u'.
 from __future__ import unicode_literals
 
 import os
@@ -43,11 +43,11 @@ from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
 # Displays error messages on the Web page if something crashes
 # WARNING: default value is True, you should always set it
-# to False in production
+# to False in production.
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
-# Where to send email alerts. You don't need that at the moments.
+# Where to send email alerts. You don't need that at the moment.
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
 )
@@ -56,7 +56,7 @@ MANAGERS = ADMINS
 
 # The database configuration is a big dictionary. It's the same place to
 # configure postgresql, mysql, sqlite or oracle, and you can have several
-# database configured for one project (one per dict key, where the dict key
+# databases configured for one project (one per dict key, where the dict key
 # is the database name). You should at least have one "default" database.
 # We will use sqlite because it works out of the box.
 DATABASES = {
@@ -78,8 +78,9 @@ ALLOWED_HOSTS = [
 
 
 # You can choose the timezone you site will be set to. If you set it to None,
-# it will be set to your machine time zone. It recommand this settings, but
-# on the strict condition your server time zone is set to UTC (which it should).
+# it will be set to your machine time zone. I recommend this settings, but
+# on the strict condition that your server time zone is set to UTC
+# (which it should).
 TIME_ZONE = None
 
 # Unless you plan to do a site in your own langage only (in which case you
@@ -92,12 +93,12 @@ LANGUAGE_CODE = 'en-us'
 # it by one for each site. Usually you just need to let that alone.
 SITE_ID = 1
 
-# Do you want your text to be translatable in other langages ?
+# Do you want your text to be translatable in other langages?
 # If you don't, set it to False to gain some perf.
 USE_I18N = True
 
-# Do you want Django to translate dates, monney and numbers according to the
-# locale ? If you don't, set it to False to gain some perf.
+# Do you want Django to translate dates, money and numbers according to the
+# locale? If you don't, set it to False to gain some perf.
 USE_L10N = True
 
 # True by default. Set it to False. Store everything as UTC and deal with
@@ -132,8 +133,8 @@ STATIC_ROOT = os.path.join(ROOT_DIR, 'var', 'static')
 STATIC_URL = '/static/'
 
 # Additional locations of static files
-# Put here a tuple of absolute path of any directory you want Django
-# to detect automatically your static files (CSS, JS, images...).
+# Put here a tuple of absolute paths to any directory you want Django
+# to automatically detect your static files (CSS, JS, images...) in.
 # Each app 'static' directory is automatically added, no need to list it here.
 STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
