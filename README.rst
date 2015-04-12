@@ -28,8 +28,8 @@ What's in there?
 
 
 - "apps" : contains all the applications, sorted by complexity and requirements. This is what you want to read.
-- "project": the django project itself, containing settings and the main url routes definition. You should have a look in there from time to time, it puts the apps in context and contains some tips.
-- "libs": dependencies such as django or external libraries that you would have to install otherwise. You don't need to, but you can look into it once you start feeling confortable with Django.
+- "project": the Django project itself, containing settings and the main URL routes definition. You should have a look in there from time to time, it puts the apps in context and contains some tips.
+- "libs": dependencies such as Django or external libraries that you would have to install otherwise. You don't need to, but you can look into it once you start feeling comfortable with Django.
 - "libs/ignore_me": the app that lists all the apps, and the main page of the project. You can ignore it, it's not very interesting.
 - "manage.py": the command to interact with the Django project. This one is a bit modified so don't replace it.
 - ".gitignore": a configuration file for git. You don't need this for Django. It's here to help me.

@@ -50,7 +50,7 @@ def filters(request):
     # filter: truncatewords
     context['phrase'] = '''
     A very very very long phrase that we shall truncate so it doesn't get
-    to long to read or mess up the layout of our beloved and wonderlful
+    to long to read or mess up the layout of our beloved and wonderful
     website. Did I mentioned I love platipus ?
     '''
 

@@ -6,7 +6,7 @@
 # automatically when you do "django-admin.py startproject".                   #
 #                                                                             #
 # Most values are Django settings, erasing the default values you can find in #
-# libs/django/conf/global_settings.py. A lot of original Django settings arez #
+# libs/django/conf/global_settings.py. A lot of original Django settings are  #
 # not changed so you'll have to refer to global_settings.py to know their     #
 # value.                                                                      #
 #                                                                             #
@@ -20,9 +20,9 @@
 # NOTE: the scope of this project is to show you how to do things in apps,    #
 # not how to deploy Django. Therefor the settings content and layout fit      #
 # this purpose and do not reflect how a production site should do it.         #
-# I will specifically put a note when warning applys, and the first           #
+# I will specifically put a note when warning applies, and the first          #
 # warning is: "You should have several settings files in a real project       #
-# to seperate production, staging and developpement environnements"           #
+# to separate production, staging and development environments"               #
 #                                                                             #
 ###############################################################################
 
@@ -36,7 +36,7 @@ from __future__ import unicode_literals
 import os
 
 # We get the path of all this directories from the "path" module. The path.py
-# file is something we code ourself, it's not provided by Django, but it's
+# file is something we code ourselves, it's not provided by Django, but it's
 # very useful to avoid hard coding all these paths.
 from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 
@@ -78,12 +78,12 @@ ALLOWED_HOSTS = [
 
 
 # You can choose the timezone you site will be set to. If you set it to None,
-# it will be set to your machine time zone. It recommand this settings, but
+# it will be set to your machine time zone. It recommend this settings, but
 # on the strict condition your server time zone is set to UTC (which it should).
 TIME_ZONE = None
 
-# Unless you plan to do a site in your own langage only (in which case you
-# would benefit from default formatting for time, date, monney, etc), you should
+# Unless you plan to do a site in your own language only (in which case you
+# would benefit from default formatting for time, date, money, etc), you should
 # let this default value and translate later.
 LANGUAGE_CODE = 'en-us'
 
@@ -92,12 +92,12 @@ LANGUAGE_CODE = 'en-us'
 # it by one for each site. Usually you just need to let that alone.
 SITE_ID = 1
 
-# Do you want your text to be translatable in other langages ?
-# If you don't, set it to False to gain some perf.
+# Do you want your text to be translatable in other languages ?
+# If you don't, set it to False to gain some performance.
 USE_I18N = True
 
-# Do you want Django to translate dates, monney and numbers according to the
-# locale ? If you don't, set it to False to gain some perf.
+# Do you want Django to translate dates, money and numbers according to the
+# locale ? If you don't, set it to False to gain some performance.
 USE_L10N = True
 
 # True by default. Set it to False. Store everything as UTC and deal with
@@ -164,7 +164,7 @@ TEMPLATE_LOADERS = (
 #     'django.template.loaders.eggs.Loader',
 )
 
-# Middleware are the Django mecanisme to apply a process to every request.
+# Middleware are the Django mechanism to apply a process to every request.
 # These are the default ones, but you can write your own. You don't need
 # too fiddle with middleware very often.
 MIDDLEWARE_CLASSES = (
@@ -177,8 +177,8 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-# The python import path to the main urls module. This is where you declare
-# the root of all your urls for all your apps
+# The python import path to the main URLs module. This is where you declare
+# the root of all your URLs for all your apps
 ROOT_URLCONF = 'project.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
@@ -293,4 +293,3 @@ LOGGING = {
 #################################################################################
 
 # NONE YET
-

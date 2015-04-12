@@ -4,4 +4,4 @@ Read views.py first.
 
 Then template/home.html.
 
-And enventually urls.py.
+And eventually urls.py.

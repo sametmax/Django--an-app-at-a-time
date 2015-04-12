@@ -2,7 +2,7 @@
 
 
 """
-    This module contains all the paths for alls this project directories, that
+    This module contains all the paths for directories of this project that
     we created dynamically.
 
     All paths are absolute, without symlink and in unicode.
@@ -20,18 +20,18 @@ import os
 import tempfile
 
 # This part is a bit complicated and is not mandatory for your project, but
-# it renders it completly portable since all directory paths are dyncamically
+# it renders it completely portable since all directory paths are dynamically
 # generated instead of being hard coded.
 
 # We get the 'settings.py' file path (the __FILE__ variable contains
 # automatically the path of the current file) and we transform this string
-# in unicode in case you got non ASCII caracters in this name (
-# sys.getfilesystemencoding() git us the file system encoding which can be
+# in unicode in case you got non ASCII characters in this name (
+# sys.getfilesystemencoding() git use the file system encoding which can be
 # different for Windows, Mac or Linux)
 FS_ENCODING = sys.getfilesystemencoding()
 try:
     THIS_FILE = __file__.decode(FS_ENCODING)
-except AttributeError: 
+except AttributeError:
     # In Python 3, __file__ is already decoded
     THIS_FILE = __file__
 
@@ -45,7 +45,7 @@ LIBS_DIR = os.path.join(ROOT_DIR, 'libs')
 
 try:
     TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
-except AttributeError: 
+except AttributeError:
     # In Python 3, __file__ is already decoded
     TEMP_DIR = tempfile.gettempdir()
 
@@ -64,4 +64,3 @@ except AttributeError:
 # thing to know.
 sys.path.append(LIBS_DIR)
 sys.path.append(APPS_DIR)
-

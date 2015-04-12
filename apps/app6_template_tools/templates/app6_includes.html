@@ -40,7 +40,7 @@ will produce :
     {% include 'app6_included.html' %}
 </div>
 
-<p>WARNING : the included template and the including template are rendered separatly, THEN merged. This means you can't access variables from one in another. If you need to do so, use <code>with</code> :</p>
+<p>WARNING: the included template and the including template are rendered separatly, THEN merged. This means you can't access variables from one in another. If you need to do so, use <code>with</code> :</p>
 
 <code>{ % include 'app6_included.html' with variable=value % }</code>
 
@@ -48,4 +48,3 @@ will produce :
 
 </body>
 </html>
-
