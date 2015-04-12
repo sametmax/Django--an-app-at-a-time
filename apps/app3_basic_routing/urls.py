@@ -21,7 +21,7 @@ urlpatterns = patterns('',
     # You can also include a whole urls.py from anywhere
     url(r'app2_included/', include('app2_hello_again.urls')),
 
-    # We still have two parts in this URL declaration :
+    # We still have two parts in this URL declaration:
     # - on the left what the URL should look like
     # - on the right the view function that Django will call
     #

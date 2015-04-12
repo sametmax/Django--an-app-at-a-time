@@ -39,7 +39,7 @@ def hello(request, name, prefix="hello"):
     """
 
     # The context now contains two variables". If you are lazy, you can
-    # use "context = locals()"" to create a dictionary of all local variables
+    # use "context = locals()" to create a dictionary of all local variables
     # and avoid populating the context manually
     context = {
         'name': name,

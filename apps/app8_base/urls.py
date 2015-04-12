@@ -35,12 +35,12 @@ urlpatterns = patterns('',
     }),
 
     # Don't be afraid by the illusion of complexity here.
-    # It still just url(patter, view, parameters).
+    # It's still just url(pattern, view, parameters).
     # There parameters are here "kwargs" and it's value. It's value is a dictionary.
     # The dictionary has 4 keys : title, examples, header, and footer.
     # The 'examples' key has a list of tuples for value, while 'title', 'header'
-    #  and 'footer' have a string for value.
-    # This is all nested, and that's why it look packed, but it really is
+    # and 'footer' have a string for value.
+    # This is all nested, and that's why it looks packed, but it really is
     # just ordinary Python objects mixed together in a function call.
 
 )

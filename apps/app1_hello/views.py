@@ -12,11 +12,11 @@ def hello(request):
 # This is how it works:                                                          #
 #                                                                                #
 #                                                                                #
-# hello() is a simple function that MUST accept an HTTP request an return a      #
+# hello() is a simple function that MUST accept a HTTP request an return a       #
 # response.                                                                      #
 #                                                                                #
 # This function is called automatically when the url in the urls.py file that    #
-# point to it is reached.                                                        #
+# points to it is reached.                                                       #
 #                                                                                #
 # The request object is passed automatically by Django, and we can do whatever   #
 # we want in the fonction body.                                                  #
@@ -26,15 +26,15 @@ def hello(request):
 # initial request, a template name and a template context.                       #
 #                                                                                #
 # The template name will be the name of the file we want to use to format our    #
-# data. In this cas, "hello.html" contains just a bit of HTML. You can           #
+# data. In this case, "hello.html" contains just a bit of HTML. You can          #
 # find it in the "templates" directory of this app.                              #
 #                                                                                #
 # The last parameter is the template context, a dictionry of variables we wish   #
-# to be available to use in the template. Here we pass the valud "world" and we  #
+# to be available to use in the template. Here we pass the value "world" and we  #
 # give it the name "name" so in the template, you can use the variable "name" to #
 # display its content.                                                           #
 #                                                                                #
-# render() mixes the template with it's context and make the web page we need.   #
+# render() mixes the template with its context and makes the web page we need.   #
 #                                                                                #
 # Django has its own idea on the MVC pattern. The controller is the framework,   #
 # models are the ORM classes, but the views are the functions in the views.py,   #

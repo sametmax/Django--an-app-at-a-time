@@ -5,8 +5,8 @@ from django.conf.urls import patterns, url
 
 urlpatterns = patterns('',
 
-    # This says to django to call the function
-    # 'home' in the module 'views' of the app 'app1_hello'" for any URL
+    # This tells django to call the function
+    # 'hello' in the module 'views' of the app 'app1_hello'" for any URL
     url(r'', 'app1_hello.views.hello'),
 
 )
