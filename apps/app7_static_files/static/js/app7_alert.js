@@ -1,1 +1,1 @@
-alert("Annoying, isn't it ?");
+alert("Annoying, isn't it?");

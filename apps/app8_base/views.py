@@ -7,7 +7,7 @@ from django.shortcuts import render
 def index(request, title, examples, header=None, footer=None, extra_context={},
           template_name='app8_base/index.html'):
     """
-        Views displaying a listing of examples for a given app.
+        View displaying a listing of examples for a given app.
 
         `request` is passed automatically, but you MUST pass at least
         `examples` via `kwargs` in urls.py.
@@ -22,12 +22,12 @@ def index(request, title, examples, header=None, footer=None, extra_context={},
         `footer` is an optional text to display after the examples.
 
         You can add an arbitrary value in the context by passing `extra_context`,
-        which will be then available in the template.
+        which will then be available in the template.
 
         Default template is app8_base/base.html, but you may change it
         by passing `template_name`.
 
-        :exemple:
+        :example:
 
             url(r'', 'app8_base.views.index', kwargs={
                 'examples':[

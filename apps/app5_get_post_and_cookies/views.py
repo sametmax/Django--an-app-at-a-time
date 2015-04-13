@@ -21,11 +21,11 @@ def hello(request):
 
     # Returns the value associated with 'name' passed via POST, or the
     # value from COOKIES.
-    # This way POST always erase the value from COOKIES
+    # This way POST always overwrites the value from COOKIES.
     name = request.POST.get('name', name)
 
     # Returns the value associated with 'name' passed via GET, or from POST.
-    # This way POST always erase the value from POST and COOKIES
+    # This way GET always overwrites the value from POST and COOKIES
     name = request.GET.get('name', name)
 
     # Let's add default value to name
@@ -43,9 +43,8 @@ def hello(request):
     response = render(request, 'app5_hello.html', context)
 
     # We set a cookie with the value "name" in the response, so next time
-    # the browser visit this view, it will send this value via a cookie
+    # the browser visit this view, it will send this value via a cookie.
     response.set_cookie('name', name)
 
-
-    # Returns the modified response
+    # Returns the modified response.
     return response
