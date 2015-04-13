@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
 
 # an alternative way of mapping a URL to a view is to pass directly the
@@ -8,6 +8,6 @@ from django.conf.urls import patterns, url
 from app2_hello_again.views import hello
 
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'', hello),
-)
+]

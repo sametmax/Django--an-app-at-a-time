@@ -8,10 +8,10 @@
     but we will give them names.
 """
 
-from django.conf.urls import patterns, url, include
+from django.conf.urls import url, include
 
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     # Giving a name is as simple as passing a "name" parameter.
     # We will use this name in views.py, so go to this file to see what
@@ -37,4 +37,4 @@ urlpatterns = patterns('',
 
     url(r'', 'app4_links.views.index'),
 
-)
+]

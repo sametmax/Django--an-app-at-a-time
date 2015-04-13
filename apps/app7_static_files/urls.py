@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.views.generic import TemplateView
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     # We put the template files in a directory named against the application.
     # This way we "namespace" it, and other application can call their
@@ -22,4 +22,4 @@ urlpatterns = patterns('',
 
     url(r'',
         TemplateView.as_view(template_name="app7_static_files/index.html")),
-)
+]

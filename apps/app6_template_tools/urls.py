@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.views.generic import TemplateView
 
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     url(r'filters/', 'app6_template_tools.views.filters',
         name="template_filters"),
@@ -30,4 +30,4 @@ urlpatterns = patterns('',
 
     url(r'', 'app6_template_tools.views.index'),
 
-)
+]

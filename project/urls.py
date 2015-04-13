@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.contrib import admin
 
 
-# This is required for the admin to work
-admin.autodiscover()
-
-
-urlpatterns = patterns('',
+urlpatterns = [
 
     # this display the admin on the url /admin/
     url(r'^admin/', include(admin.site.urls)),
@@ -29,4 +25,4 @@ urlpatterns = patterns('',
 
     # ignore this, it's the page of the project listing all the apps
     url(r'^$', include('ignore_me.urls')),
-)
+]

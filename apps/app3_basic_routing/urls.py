@@ -5,10 +5,10 @@
     called.
 """
 
-from django.conf.urls import patterns, url, include
+from django.conf.urls import url, include
 
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     # If the URL looks like ......./prefix/, then call the prefix() view
     # function
@@ -54,4 +54,4 @@ urlpatterns = patterns('',
     url(r'', 'app3_basic_routing.views.index'),
 
 
-)
+]
