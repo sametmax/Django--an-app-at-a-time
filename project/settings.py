@@ -5,10 +5,10 @@
 # This file contains settings for your whole project and is generated         #
 # automatically when you do "django-admin.py startproject".                   #
 #                                                                             #
-# Most values are Django settings, erasing the default values you can find in #
-# libs/django/conf/global_settings.py. A lot of original Django settings are  #
-# not changed so you'll have to refer to global_settings.py to know their     #
-# value.                                                                      #
+# Most values are Django settings, overwriting the default values you can     #
+# find in libs/django/conf/global_settings.py. A lot of original Django       #
+# settings are not changed so you'll have to refer to global_settings.py to   #
+# know their values.                                                          #
 #                                                                             #
 # Some values are for others Django apps.                                     #
 #                                                                             #
@@ -56,7 +56,7 @@ MANAGERS = ADMINS
 
 # The database configuration is a big dictionary. It's the same place to
 # configure postgresql, mysql, sqlite or oracle, and you can have several
-# database configured for one project (one per dict key, where the dict key
+# databases configured for one project (one per dict key, where the dict key
 # is the database name). You should at least have one "default" database.
 # We will use sqlite because it works out of the box.
 DATABASES = {
@@ -78,12 +78,13 @@ ALLOWED_HOSTS = [
 
 
 # You can choose the timezone you site will be set to. If you set it to None,
-# it will be set to your machine time zone. It recommend this settings, but
-# on the strict condition your server time zone is set to UTC (which it should).
+# it will be set to your machine time zone. I recommend this settings, but
+# on the strict condition that your server time zone is set to UTC
+# (which it should).
 TIME_ZONE = None
 
 # Unless you plan to do a site in your own language only (in which case you
-# would benefit from default formatting for time, date, money, etc), you should
+# would benefit from default formatting for time, date, monney, etc), you should
 # let this default value and translate later.
 LANGUAGE_CODE = 'en-us'
 
@@ -132,8 +133,8 @@ STATIC_ROOT = os.path.join(ROOT_DIR, 'var', 'static')
 STATIC_URL = '/static/'
 
 # Additional locations of static files
-# Put here a tuple of absolute path of any directory you want Django
-# to detect automatically your static files (CSS, JS, images...).
+# Put here a tuple of absolute paths to any directory you want Django
+# to automatically detect your static files (CSS, JS, images...).
 # Each app 'static' directory is automatically added, no need to list it here.
 STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".

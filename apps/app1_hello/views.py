@@ -16,7 +16,7 @@ def hello(request):
 # response.                                                                      #
 #                                                                                #
 # This function is called automatically when the URL in the urls.py file that    #
-# point to it is reached.                                                        #
+# points to it is reached.                                                        #
 #                                                                                #
 # The request object is passed automatically by Django, and we can do whatever   #
 # we want in the function body.                                                  #
@@ -34,7 +34,7 @@ def hello(request):
 # give it the name "name" so in the template, you can use the variable "name" to #
 # display its content.                                                           #
 #                                                                                #
-# render() mixes the template with it's context and make the web page we need.   #
+# render() mixes the template with its context and makes the web page we need.   #
 #                                                                                #
 # Django has its own idea on the MVC pattern. The controller is the framework,   #
 # models are the ORM classes, but the views are the functions in the views.py,   #
