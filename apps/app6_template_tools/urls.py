@@ -19,7 +19,7 @@ urlpatterns = patterns('',
     # and provided by Django. There are a lot of them to do various tasks,
     # usually for stuff you do very often.
     # TemplateView is also a class based view, while you have been using
-    # only functions to create views untill now.
+    # only functions to create views until now.
     # Don't worry about it.
     # You just need to know that TemplateView allow you to render a template
     # directly with this syntax, without the need to code a empty view

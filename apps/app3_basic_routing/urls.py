@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    "routing" is declaring what url will trigger which vue function to be
+    "routing" is declaring what URL will trigger which vue function to be
     called.
 """
 
@@ -31,7 +31,7 @@ urlpatterns = patterns('',
     #  - (?P<name>\w+) will match any set of letters and _ then capture it
     #    under the name of "name" to pass it as a parameter to hello()
     #  - (?P<prefix>\w+) will match any additional set of letters and _, after
-    #   the first slash, catpure is under the name "prefix" to pass it as
+    #   the first slash, capture is under the name "prefix" to pass it as
     #   a parameter to hello().
     #
     # This syntax is not specific to Django, it's plain old regular expressions

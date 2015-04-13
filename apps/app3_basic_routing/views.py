@@ -5,7 +5,7 @@
 
     - one main view at the root of the app URL pattern
     - one static view with a prefix
-    - one dynamic view with url parameter
+    - one dynamic view with URL parameter
 """
 
 
@@ -47,4 +47,3 @@ def hello(request, name, prefix="hello"):
     }
 
     return render(request, 'hello3.html', context)
-

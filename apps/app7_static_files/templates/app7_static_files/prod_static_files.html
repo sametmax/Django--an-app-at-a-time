@@ -33,9 +33,9 @@ You would do it exactly the same way, except you won't be running <code>./manage
 
 <h2>Serve static files</h2>
 
-<p>It will be then your job to create a configuration file for your server so it serves the content of <code>settings.STATIC_ROOT</code> when a request is made to <code>settings.STATIC_URL</code> (currently : <em>{{ settings.STATIC_URL }}</em>)</p>
+<p>It will be then your job to create a configuration file for your server so it serves the content of <code>settings.STATIC_ROOT</code> when a request is made to <code>settings.STATIC_URL</code> (currently: <em>{{ settings.STATIC_URL }}</em>)</p>
 
-<p>I like to use Nginx to serve Django apps. Here is what a minimalist Nginx configuration file could look like :</p>
+<p>I like to use Nginx to serve Django apps. Here is what a minimalist Nginx configuration file could look like:</p>
 
 <pre>
 server {

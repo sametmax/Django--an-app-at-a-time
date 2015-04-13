@@ -4,7 +4,7 @@
     When you start having a lot of routes, you can give them names, and
     refer to this name later, when you want a link for them.
 
-    Here we will use the SAME urls and views as in the previous app,
+    Here we will use the SAME URLs and views as in the previous app,
     but we will give them names.
 """
 
