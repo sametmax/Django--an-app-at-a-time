@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url, include
+from django.conf.urls import url, include
 
 
 """
@@ -9,7 +9,7 @@ from django.conf.urls import patterns, url, include
 """
 
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     # Si l'URL ressemble à ...../prefix/, alors appeler la fonction vue
     # prefix()
@@ -59,4 +59,4 @@ urlpatterns = patterns('',
     url(r'', 'app3_basic_routing.views.index'),
 
 
-)
+]

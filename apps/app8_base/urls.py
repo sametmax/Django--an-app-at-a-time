@@ -3,11 +3,11 @@
 
 from __future__ import unicode_literals
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.views.generic import TemplateView
 
 
-urlpatterns = patterns('',
+urlpatterns = [
 
     url(r'example1/',
         TemplateView.as_view(template_name="app8_base/example_child.html"),
@@ -45,4 +45,4 @@ urlpatterns = patterns('',
     # ce sont juste des objets Python ordinaires mélangés ensembles dans un
     # appel de fonction.
 
-)
+]

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
 
 # On peut également mapper une URL à une vue en passant directement la vue
@@ -8,6 +8,6 @@ from django.conf.urls import patterns, url
 from app1_hello.views import hello
 
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'', hello),
-)
+]
