@@ -4,6 +4,28 @@ Django, an app at a time
 
 A heavily commented Django project dedicated to teaching the framework or refresh one's memory. Each app demonstrates a few essential Django features so you can see how it all fit together by looking at the code and testing the result in your browser. There is nothing do except run and read.
 
+Currently:
+
+- Project : see how settings and urls.py work
+- App 1: hello world
+- App 2: hello again
+- App 3: basic routing
+- App 4: creating links
+- App 5: GET, POST and cookies
+- App 6: templates, tags and filters
+- App 7: static files
+- App 8: reusable app
+
+What's to come:
+
+- ORM
+- Forms
+- Authentification
+- Admin
+- Command
+- Translations
+
+
 How to use?
 ==================
 
