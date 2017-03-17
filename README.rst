@@ -2,6 +2,8 @@
 Django, an app at a time
 *******************************
 
+A heavily commented Django project dedicated to teaching the framework or refresh one's memory. Each app demonstrates a few essential Django features so you can see how it all fit together by looking at the code and testing the result in your browser. There is nothing do except run and read.
+
 How to use?
 ==================
 
