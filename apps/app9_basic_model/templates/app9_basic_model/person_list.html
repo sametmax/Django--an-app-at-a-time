@@ -1,0 +1,24 @@
+{% extends "app8_base/example.html" %}
+
+{% block title %}
+Person List
+{% endblock title %}
+
+{% block content %}
+
+{# if we don't have any person yet, better make an explicit message #}
+{% if not persons %}
+    <p>
+        There is no person in database yet.
+        Maybe you want to <a href="{% url 'add_person' %}">create one</a> ?
+    </p>
+{% else %}
+{# if we do have persons, just loop on the queryset to have access to each person #}
+    <ul>
+        {% for person in persons %}
+            <li><a href="{% url "admin:edit" "person" person.id %}">{{ person.name }} </a></li>
+        {% endfor %}
+     </ul>
+{% endif %}
+
+{% endblock %}

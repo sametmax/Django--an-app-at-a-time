@@ -55,13 +55,17 @@ class AppConfig(object):
         """Attempt to determine app's filesystem path from its module."""
         # See #21874 for extended discussion of the behavior of this method in
         # various cases.
-        # Convert paths to list because Python 3.3 _NamespacePath does not
+        # Convert paths to list because Python 3's _NamespacePath does not
         # support indexing.
         paths = list(getattr(module, '__path__', []))
         if len(paths) != 1:
             filename = getattr(module, '__file__', None)
             if filename is not None:
                 paths = [os.path.dirname(filename)]
+            else:
+                # For unknown reasons, sometimes the list returned by __path__
+                # contains duplicates that must be removed (#25246).
+                paths = list(set(paths))
         if len(paths) > 1:
             raise ImproperlyConfigured(
                 "The app module %r has multiple filesystem locations (%r); "
@@ -161,8 +165,7 @@ class AppConfig(object):
             raise LookupError(
                 "App '%s' doesn't have a '%s' model." % (self.label, model_name))
 
-    def get_models(self, include_auto_created=False,
-                   include_deferred=False, include_swapped=False):
+    def get_models(self, include_auto_created=False, include_swapped=False):
         """
         Returns an iterable of models.
 
@@ -178,8 +181,6 @@ class AppConfig(object):
         """
         self.check_models_ready()
         for model in self.models.values():
-            if model._deferred and not include_deferred:
-                continue
             if model._meta.auto_created and not include_auto_created:
                 continue
             if model._meta.swapped and not include_swapped:

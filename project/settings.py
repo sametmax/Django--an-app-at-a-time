@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 
 ###############################################################################
@@ -45,7 +45,6 @@ from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 # WARNING: default value is True, you should always set it
 # to False in production
 DEBUG = True
-TEMPLATE_DEBUG = DEBUG
 
 # Where to send email alerts. You don't need that at the moments.
 ADMINS = (
@@ -157,17 +156,33 @@ STATICFILES_FINDERS = (
 # public repository.
 SECRET_KEY = '2fhdcfk-0ctkijtc_rqtj2^qw56yc)6$^j4msj3%yn*ib@9ya_'
 
-# List of callables that know how to import templates from various sources.
-# Same as STATICFILES_FINDERS but for html template files.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
-)
+# How Django find your templates files (the HTML files)
+TEMPLATES = [
+    {
+        # Look for them locally
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # Additional directory where to look for them
+        'DIRS': [],
+        # Look in every "templates" dir in every apps
+        'APP_DIRS': True,
+        'OPTIONS': {
+            # Callables putting data automatically in the template
+            # context. By default the template can see the DEBUG constant,
+            # the authenticated user, the request object and flash messages
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 
 # Middleware are the Django mechanism to apply a process to every request.
 # These are the default ones, but you can write your own. You don't need
-# too fiddle with middleware very often.
+# to fiddle with middleware very often.
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -185,14 +200,6 @@ ROOT_URLCONF = 'project.urls'
 # Python dotted path to the WSGI application used by Django's runserver.
 # For you, useful in production only.
 WSGI_APPLICATION = 'project.wsgi.application'
-
-# Same as STATICFILES_DIRS but for html template files. 'template' dirs
-# in apps are automatically detected.
-TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
-)
 
 # List of python import path of all the applications Django should load when
 # it starts. It contains Django internal applications, additional pip installed

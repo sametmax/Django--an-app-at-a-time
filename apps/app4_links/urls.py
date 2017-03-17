@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 """
     When you start having a lot of routes, you can give them names, and
@@ -10,17 +10,23 @@
 
 from django.conf.urls import url, include
 
+# it's possible use whole prefixing as well to avoid name conflicts
+# The choice is yours, there is no better way
+import app1_hello.views
+import app3_basic_routing.views
+import app4_links.views
+
 
 urlpatterns = [
 
     # Giving a name is as simple as passing a "name" parameter.
     # We will use this name in views.py, so go to this file to see what
     # we do with it.
-    url(r'prefix/$', 'app3_basic_routing.views.prefix', name="prefix"),
+    url(r'prefix/$', app3_basic_routing.views.prefix, name="prefix"),
 
     # Starting from here, we will use names in the template,
     # so look at templates/app4_index.html to see how we use this name.
-    url(r'hello_from_app1/', 'app1_hello.views.hello', name="hello"),
+    url(r'hello_from_app1/', app1_hello.views.hello, name="hello"),
 
     # Naming routes doesn't work with include. This will not do what you
     # expect. To benefit from name, you should name routes from
@@ -29,12 +35,18 @@ urlpatterns = [
 
     # In Python it's allowed to move parameters on another line, so we use
     # this to stack them so it doesn't make a loooooooooooong line.
-    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$',
-        'app3_basic_routing.views.hello',
-        name='hello_prefix'),
+    url(
+        r'(?P<name>\w+)/(?P<prefix>\w+)/$',
+        app3_basic_routing.views.hello,
+        name='hello_prefix'
+    ),
 
-    url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello', name='hello_name'),
+    url(
+        r'(?P<name>\w+)/$',
+        app3_basic_routing.views.hello,
+        name='hello_name'
+    ),
 
-    url(r'', 'app4_links.views.index'),
+    url(r'', app4_links.views.index),
 
 ]

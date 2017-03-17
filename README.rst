@@ -8,6 +8,8 @@ How to use?
 Download and extract this project, and run:
 
     python ./manage.py runserver
+    
+You can ignore the "You have 15 unapplied migration(s)." warning.
 
 You don't need to install anything.
 

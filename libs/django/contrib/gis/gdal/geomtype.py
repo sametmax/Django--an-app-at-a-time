@@ -3,7 +3,7 @@ from django.utils import six
 
 
 class OGRGeomType(object):
-    "Encapulates OGR Geometry Types."
+    "Encapsulates OGR Geometry Types."
 
     wkb25bit = -2147483648
 
@@ -18,6 +18,7 @@ class OGRGeomType(object):
               7: 'GeometryCollection',
               100: 'None',
               101: 'LinearRing',
+              102: 'PointZ',
               1 + wkb25bit: 'Point25D',
               2 + wkb25bit: 'LineString25D',
               3 + wkb25bit: 'Polygon25D',
@@ -37,7 +38,7 @@ class OGRGeomType(object):
             type_input = type_input.lower()
             if type_input == 'geometry':
                 type_input = 'unknown'
-            num = self._str_types.get(type_input, None)
+            num = self._str_types.get(type_input)
             if num is None:
                 raise GDALException('Invalid OGR String Type "%s"' % type_input)
         elif isinstance(type_input, int):
@@ -84,4 +85,14 @@ class OGRGeomType(object):
             return None
         elif s == 'Unknown':
             s = 'Geometry'
+        elif s == 'PointZ':
+            s = 'Point'
         return s + 'Field'
+
+    def to_multi(self):
+        """
+        Transform Point, LineString, Polygon, and their 25D equivalents
+        to their Multi... counterpart.
+        """
+        if self.name.startswith(('Point', 'LineString', 'Polygon')):
+            self.num += 3

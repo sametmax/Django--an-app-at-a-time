@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 from django.conf.urls import url
 
 
-# an alternative way of mapping a URL to a view is to pass directly the
-# imported view (and not a string, like in app1)
-from app2_hello_again.views import hello
+# An alternative way is to use relative imports
+from .views import hello
 
 
 urlpatterns = [

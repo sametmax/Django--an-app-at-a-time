@@ -15,17 +15,26 @@ class BaseRangeField(forms.MultiValueField):
     }
 
     def __init__(self, **kwargs):
-        kwargs.setdefault('widget', RangeWidget(self.base_field.widget))
-        kwargs.setdefault('fields', [self.base_field(required=False), self.base_field(required=False)])
+        if 'widget' not in kwargs:
+            kwargs['widget'] = RangeWidget(self.base_field.widget)
+        if 'fields' not in kwargs:
+            kwargs['fields'] = [self.base_field(required=False), self.base_field(required=False)]
         kwargs.setdefault('required', False)
         kwargs.setdefault('require_all_fields', False)
         super(BaseRangeField, self).__init__(**kwargs)
 
     def prepare_value(self, value):
+        lower_base, upper_base = self.fields
         if isinstance(value, self.range_type):
-            return [value.lower, value.upper]
+            return [
+                lower_base.prepare_value(value.lower),
+                upper_base.prepare_value(value.upper),
+            ]
         if value is None:
-            return [None, None]
+            return [
+                lower_base.prepare_value(None),
+                upper_base.prepare_value(None),
+            ]
         return value
 
     def compress(self, values):

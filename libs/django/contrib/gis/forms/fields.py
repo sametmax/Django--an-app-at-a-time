@@ -1,8 +1,6 @@
 from __future__ import unicode_literals
 
 from django import forms
-# While this couples the geographic forms to the GEOS library,
-# it decouples from database (by not importing SpatialBackend).
 from django.contrib.gis.geos import GEOSException, GEOSGeometry
 from django.utils.translation import ugettext_lazy as _
 

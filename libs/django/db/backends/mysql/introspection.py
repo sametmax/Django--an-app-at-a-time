@@ -8,7 +8,8 @@ from django.db.backends.base.introspection import (
 from django.utils.datastructures import OrderedSet
 from django.utils.encoding import force_text
 
-FieldInfo = namedtuple('FieldInfo', FieldInfo._fields + ('extra',))
+FieldInfo = namedtuple('FieldInfo', FieldInfo._fields + ('extra', 'default'))
+InfoLine = namedtuple('InfoLine', 'col_name data_type max_len num_prec num_scale extra column_default')
 
 
 class DatabaseIntrospection(BaseDatabaseIntrospection):
@@ -37,8 +38,12 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     def get_field_type(self, data_type, description):
         field_type = super(DatabaseIntrospection, self).get_field_type(data_type, description)
-        if field_type == 'IntegerField' and 'auto_increment' in description.extra:
-            return 'AutoField'
+        if 'auto_increment' in description.extra:
+            if field_type == 'IntegerField':
+                return 'AutoField'
+            elif field_type == 'BigIntegerField':
+                return 'BigAutoField'
+
         return field_type
 
     def get_table_list(self, cursor):
@@ -58,26 +63,34 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         #   not visible length (#5725)
         # - precision and scale (for decimal fields) (#5014)
         # - auto_increment is not available in cursor.description
-        InfoLine = namedtuple('InfoLine', 'col_name data_type max_len num_prec num_scale extra')
         cursor.execute("""
-            SELECT column_name, data_type, character_maximum_length, numeric_precision, numeric_scale, extra
+            SELECT column_name, data_type, character_maximum_length, numeric_precision,
+                   numeric_scale, extra, column_default
             FROM information_schema.columns
             WHERE table_name = %s AND table_schema = DATABASE()""", [table_name])
         field_info = {line[0]: InfoLine(*line) for line in cursor.fetchall()}
 
         cursor.execute("SELECT * FROM %s LIMIT 1" % self.connection.ops.quote_name(table_name))
-        to_int = lambda i: int(i) if i is not None else i
+
+        def to_int(i):
+            return int(i) if i is not None else i
+
         fields = []
         for line in cursor.description:
             col_name = force_text(line[0])
             fields.append(
-                FieldInfo(*((col_name,)
-                            + line[1:3]
-                            + (to_int(field_info[col_name].max_len) or line[3],
-                               to_int(field_info[col_name].num_prec) or line[4],
-                               to_int(field_info[col_name].num_scale) or line[5])
-                            + (line[6],)
-                            + (field_info[col_name].extra,)))
+                FieldInfo(*(
+                    (col_name,) +
+                    line[1:3] +
+                    (
+                        to_int(field_info[col_name].max_len) or line[3],
+                        to_int(field_info[col_name].num_prec) or line[4],
+                        to_int(field_info[col_name].num_scale) or line[5],
+                        line[6],
+                        field_info[col_name].extra,
+                        field_info[col_name].column_default,
+                    )
+                ))
             )
         return fields
 
@@ -156,10 +169,10 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                 kc.`referenced_table_name`, kc.`referenced_column_name`
             FROM information_schema.key_column_usage AS kc
             WHERE
-                kc.table_schema = %s AND
+                kc.table_schema = DATABASE() AND
                 kc.table_name = %s
         """
-        cursor.execute(name_query, [self.connection.settings_dict['NAME'], table_name])
+        cursor.execute(name_query, [table_name])
         for constraint, column, ref_table, ref_column in cursor.fetchall():
             if constraint not in constraints:
                 constraints[constraint] = {
@@ -176,10 +189,10 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             SELECT c.constraint_name, c.constraint_type
             FROM information_schema.table_constraints AS c
             WHERE
-                c.table_schema = %s AND
+                c.table_schema = DATABASE() AND
                 c.table_name = %s
         """
-        cursor.execute(type_query, [self.connection.settings_dict['NAME'], table_name])
+        cursor.execute(type_query, [table_name])
         for constraint, kind in cursor.fetchall():
             if kind.lower() == "primary key":
                 constraints[constraint]['primary_key'] = True

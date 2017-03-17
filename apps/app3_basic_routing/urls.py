@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 """
     "routing" is declaring what URL will trigger which vue function to be
@@ -7,16 +7,22 @@
 
 from django.conf.urls import url, include
 
+# you can import several views on the same line
+from app3_basic_routing.views import hello, index, prefix
+
+# you can alias imports if you want to avoid name conflicts
+from app1_hello.views import hello as hello1
+
 
 urlpatterns = [
 
     # If the URL looks like ......./prefix/, then call the prefix() view
     # function
 
-    url(r'prefix/$', 'app3_basic_routing.views.prefix'),
+    url(r'prefix/$', prefix),
 
     # It's possible to map an URL to a view from anywhere (such as another app)
-    url(r'hello_from_app1/', 'app1_hello.views.hello'),
+    url(r'hello_from_app1/', hello1),
 
     # You can also include a whole urls.py from anywhere
     url(r'app2_included/', include('app2_hello_again.urls')),
@@ -39,19 +45,19 @@ urlpatterns = [
     # uses of routing in Django.
     #
 
-    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$', 'app3_basic_routing.views.hello'),
+    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$', hello),
 
     # We can declare several routes going to the SAME view.
     # Here we add one route without the prefix, to make the prefix optional.
     # REMEMBER: in routing, always add the most specific routes first
     # because the URL will be compared from the top patterns to the bottom ones.
 
-    url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello'),
+    url(r'(?P<name>\w+)/$', hello),
 
     # This index view is the root route, you should always declare it last
     # because it's view will be called if no other URLs match.
 
-    url(r'', 'app3_basic_routing.views.index'),
+    url(r'', index),
 
 
 ]

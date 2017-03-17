@@ -33,15 +33,12 @@
               #  OFTReal returns floats, all else returns string.
               val = field.value
 """
-# ctypes prerequisites.
 from ctypes import byref
 
-# The GDAL C library, OGR exceptions, and the Layer object.
 from django.contrib.gis.gdal.base import GDALBase
 from django.contrib.gis.gdal.driver import Driver
 from django.contrib.gis.gdal.error import GDALException, OGRIndexError
 from django.contrib.gis.gdal.layer import Layer
-# Getting the ctypes prototypes for the DataSource.
 from django.contrib.gis.gdal.prototypes import ds as capi
 from django.utils import six
 from django.utils.encoding import force_bytes, force_text
@@ -49,7 +46,7 @@ from django.utils.six.moves import range
 
 
 # For more information, see the OGR C API source code:
-#  http://www.gdal.org/ogr/ogr__api_8h.html
+#  http://www.gdal.org/ogr__api_8h.html
 #
 # The OGR_DS_* routines are relevant here.
 class DataSource(GDALBase):
@@ -90,8 +87,10 @@ class DataSource(GDALBase):
 
     def __del__(self):
         "Destroys this DataStructure object."
-        if self._ptr and capi:
+        try:
             capi.destroy_ds(self._ptr)
+        except (AttributeError, TypeError):
+            pass  # Some part might already have been garbage collected
 
     def __iter__(self):
         "Allows for iteration over the layers in a data source."

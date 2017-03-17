@@ -1,8 +1,10 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 #
 from django.conf.urls import url
 
+from ignore_me.views import index
+
 
 urlpatterns = [
-    url(r'', 'ignore_me.views.index'),
+    url(r'', index),
 ]

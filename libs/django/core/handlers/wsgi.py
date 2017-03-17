@@ -3,20 +3,16 @@ from __future__ import unicode_literals
 import cgi
 import codecs
 import logging
+import re
 import sys
-import warnings
 from io import BytesIO
-from threading import Lock
 
 from django import http
 from django.conf import settings
 from django.core import signals
 from django.core.handlers import base
-from django.core.urlresolvers import set_script_prefix
-# For backwards compatibility -- lots of code uses this in the wild!
-from django.http.response import REASON_PHRASES as STATUS_CODE_TEXT  # NOQA
-from django.utils import datastructures, six
-from django.utils.deprecation import RemovedInDjango19Warning
+from django.urls import set_script_prefix
+from django.utils import six
 from django.utils.encoding import force_str, force_text
 from django.utils.functional import cached_property
 
@@ -24,6 +20,8 @@ logger = logging.getLogger('django.request')
 
 # encode() and decode() expect the charset to be a native string.
 ISO_8859_1, UTF_8 = str('iso-8859-1'), str('utf-8')
+
+_slashes_re = re.compile(br'/+')
 
 
 class LimitedStream(object):
@@ -99,14 +97,14 @@ class WSGIRequest(http.HttpRequest):
         self.META['PATH_INFO'] = path_info
         self.META['SCRIPT_NAME'] = script_name
         self.method = environ['REQUEST_METHOD'].upper()
-        _, content_params = cgi.parse_header(environ.get('CONTENT_TYPE', ''))
-        if 'charset' in content_params:
+        self.content_type, self.content_params = cgi.parse_header(environ.get('CONTENT_TYPE', ''))
+        if 'charset' in self.content_params:
             try:
-                codecs.lookup(content_params['charset'])
+                codecs.lookup(self.content_params['charset'])
             except LookupError:
                 pass
             else:
-                self.encoding = content_params['charset']
+                self.encoding = self.content_params['charset']
         self._post_parse_error = False
         try:
             content_length = int(environ.get('CONTENT_LENGTH'))
@@ -118,13 +116,6 @@ class WSGIRequest(http.HttpRequest):
 
     def _get_scheme(self):
         return self.environ.get('wsgi.url_scheme')
-
-    def _get_request(self):
-        warnings.warn('`request.REQUEST` is deprecated, use `request.GET` or '
-                      '`request.POST` instead.', RemovedInDjango19Warning, 2)
-        if not hasattr(self, '_request'):
-            self._request = datastructures.MergeDict(self.POST, self.GET)
-        return self._request
 
     @cached_property
     def GET(self):
@@ -152,33 +143,23 @@ class WSGIRequest(http.HttpRequest):
 
     POST = property(_get_post, _set_post)
     FILES = property(_get_files)
-    REQUEST = property(_get_request)
 
 
 class WSGIHandler(base.BaseHandler):
-    initLock = Lock()
     request_class = WSGIRequest
 
-    def __call__(self, environ, start_response):
-        # Set up middleware if needed. We couldn't do this earlier, because
-        # settings weren't available.
-        if self._request_middleware is None:
-            with self.initLock:
-                try:
-                    # Check that middleware is still uninitialized.
-                    if self._request_middleware is None:
-                        self.load_middleware()
-                except:
-                    # Unload whatever middleware we got
-                    self._request_middleware = None
-                    raise
+    def __init__(self, *args, **kwargs):
+        super(WSGIHandler, self).__init__(*args, **kwargs)
+        self.load_middleware()
 
+    def __call__(self, environ, start_response):
         set_script_prefix(get_script_name(environ))
         signals.request_started.send(sender=self.__class__, environ=environ)
         try:
             request = self.request_class(environ)
         except UnicodeDecodeError:
-            logger.warning('Bad Request (UnicodeDecodeError)',
+            logger.warning(
+                'Bad Request (UnicodeDecodeError)',
                 exc_info=sys.exc_info(),
                 extra={
                     'status_code': 400,
@@ -190,7 +171,7 @@ class WSGIHandler(base.BaseHandler):
 
         response._handler_class = self.__class__
 
-        status = '%s %s' % (response.status_code, response.reason_phrase)
+        status = '%d %s' % (response.status_code, response.reason_phrase)
         response_headers = [(str(k), str(v)) for k, v in response.items()]
         for c in response.cookies.values():
             response_headers.append((str('Set-Cookie'), str(c.output(header=''))))
@@ -230,8 +211,12 @@ def get_script_name(environ):
         script_url = get_bytes_from_wsgi(environ, 'REDIRECT_URL', '')
 
     if script_url:
+        if b'//' in script_url:
+            # mod_wsgi squashes multiple successive slashes in PATH_INFO,
+            # do the same with script_url before manipulating paths (#17133).
+            script_url = _slashes_re.sub(b'/', script_url)
         path_info = get_bytes_from_wsgi(environ, 'PATH_INFO', '')
-        script_name = script_url[:-len(path_info)]
+        script_name = script_url[:-len(path_info)] if path_info else script_url
     else:
         script_name = get_bytes_from_wsgi(environ, 'SCRIPT_NAME', '')
 

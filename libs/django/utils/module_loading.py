@@ -1,15 +1,9 @@
-# Avoid importing `importlib` from this package.
-from __future__ import absolute_import
-
 import copy
 import os
 import sys
-import warnings
 from importlib import import_module
 
-from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
-from django.utils.deprecation import RemovedInDjango19Warning
 
 
 def import_string(dotted_path):
@@ -29,26 +23,8 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError:
         msg = 'Module "%s" does not define a "%s" attribute/class' % (
-            dotted_path, class_name)
+            module_path, class_name)
         six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
-
-
-def import_by_path(dotted_path, error_prefix=''):
-    """
-    Import a dotted module path and return the attribute/class designated by the
-    last name in the path. Raise ImproperlyConfigured if something goes wrong.
-    """
-    warnings.warn(
-        'import_by_path() has been deprecated. Use import_string() instead.',
-        RemovedInDjango19Warning, stacklevel=2)
-    try:
-        attr = import_string(dotted_path)
-    except ImportError as e:
-        msg = '%sError importing module %s: "%s"' % (
-            error_prefix, dotted_path, e)
-        six.reraise(ImproperlyConfigured, ImproperlyConfigured(msg),
-                    sys.exc_info()[2])
-    return attr
 
 
 def autodiscover_modules(*args, **kwargs):
@@ -72,7 +48,7 @@ def autodiscover_modules(*args, **kwargs):
                     before_import_registry = copy.copy(register_to._registry)
 
                 import_module('%s.%s' % (app_config.name, module_to_search))
-            except:
+            except Exception:
                 # Reset the registry to the state before the last import
                 # as this import will have to reoccur on the next request and
                 # this could raise NotRegistered and AlreadyRegistered
@@ -87,11 +63,8 @@ def autodiscover_modules(*args, **kwargs):
                     raise
 
 
-if sys.version_info[:2] >= (3, 3):
-    if sys.version_info[:2] >= (3, 4):
-        from importlib.util import find_spec as importlib_find
-    else:
-        from importlib import find_loader as importlib_find
+if six.PY3:
+    from importlib.util import find_spec as importlib_find
 
     def module_has_submodule(package, module_name):
         """See if 'module' is in 'package'."""
@@ -172,3 +145,21 @@ else:
         else:
             # Exhausted the search, so the module cannot be found.
             return False
+
+
+def module_dir(module):
+    """
+    Find the name of the directory that contains a module, if possible.
+
+    Raise ValueError otherwise, e.g. for namespace packages that are split
+    over several directories.
+    """
+    # Convert to list because _NamespacePath does not support indexing on 3.3.
+    paths = list(getattr(module, '__path__', []))
+    if len(paths) == 1:
+        return paths[0]
+    else:
+        filename = getattr(module, '__file__', None)
+        if filename is not None:
+            return os.path.dirname(filename)
+    raise ValueError("Cannot determine directory containing %s" % module)

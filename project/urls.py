@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 from django.conf.urls import include, url
 from django.contrib import admin
@@ -24,5 +24,5 @@ urlpatterns = [
     url(r'^app8/', include('app8_base.urls')),
 
     # ignore this, it's the page of the project listing all the apps
-    url(r'^$', include('ignore_me.urls')),
+    url(r'^', include('ignore_me.urls')),
 ]
