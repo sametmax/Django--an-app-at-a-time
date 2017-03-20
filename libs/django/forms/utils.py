@@ -4,9 +4,7 @@ import json
 import sys
 
 from django.conf import settings
-# Import ValidationError so that it can be imported from this
-# module to maintain backwards compatibility.
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError  # backwards compatibility
 from django.utils import six, timezone
 from django.utils.encoding import force_text, python_2_unicode_compatible
 from django.utils.html import escape, format_html, format_html_join, html_safe
@@ -18,14 +16,23 @@ except ImportError:  # Python 2
     from UserList import UserList
 
 
+def pretty_name(name):
+    """Converts 'first_name' to 'First name'"""
+    if not name:
+        return ''
+    return name.replace('_', ' ').capitalize()
+
+
 def flatatt(attrs):
     """
     Convert a dictionary of attributes to a single string.
     The returned string will contain a leading space followed by key="value",
-    XML-style pairs.  It is assumed that the keys do not need to be XML-escaped.
-    If the passed dictionary is empty, then return an empty string.
+    XML-style pairs. In the case of a boolean value, the key will appear
+    without a value. It is assumed that the keys do not need to be
+    XML-escaped. If the passed dictionary is empty, then return an empty
+    string.
 
-    The result is passed through 'mark_safe'.
+    The result is passed through 'mark_safe' (by way of 'format_html_join').
     """
     key_value_attrs = []
     boolean_attrs = []
@@ -178,7 +185,7 @@ def from_current_timezone(value):
 def to_current_timezone(value):
     """
     When time zone support is enabled, convert aware datetimes
-    to naive dateimes in the current time zone for display.
+    to naive datetimes in the current time zone for display.
     """
     if settings.USE_TZ and value is not None and timezone.is_aware(value):
         current_timezone = timezone.get_current_timezone()

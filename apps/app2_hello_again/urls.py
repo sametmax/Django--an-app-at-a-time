@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 from django.conf.urls import url
 
 
-# On peut également mapper une URL à une vue en passant directement la vue
-# importée (et nom une chaîne, comme dans app1)
+# Une alternative est d'utiliser un import relatif
 from app2_hello_again.views import hello
 
 

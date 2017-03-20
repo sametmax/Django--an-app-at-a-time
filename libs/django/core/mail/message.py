@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import mimetypes
 import os
 import random
-import sys
 import time
 from email import (
     charset as Charset, encoders as Encoders, generator, message_from_string,
@@ -14,7 +13,8 @@ from email.mime.base import MIMEBase
 from email.mime.message import MIMEMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, formatdate, getaddresses, parseaddr
+from email.utils import formatdate, getaddresses, parseaddr
+from io import BytesIO
 
 from django.conf import settings
 from django.core.mail.utils import DNS_NAME
@@ -25,10 +25,14 @@ from django.utils.encoding import force_text
 # some spam filters.
 utf8_charset = Charset.Charset('utf-8')
 utf8_charset.body_encoding = None  # Python defaults to BASE64
+utf8_charset_qp = Charset.Charset('utf-8')
+utf8_charset_qp.body_encoding = Charset.QP
 
 # Default MIME type to use on attachments (if it is not explicitly given
 # and cannot be guessed).
 DEFAULT_ATTACHMENT_MIME_TYPE = 'application/octet-stream'
+
+RFC5322_EMAIL_LINE_LENGTH_LIMIT = 998
 
 
 class BadHeaderError(ValueError):
@@ -40,7 +44,7 @@ class BadHeaderError(ValueError):
 # TODO: replace with email.utils.make_msgid(.., domain=DNS_NAME) when dropping
 # Python 2 (Python 2's version doesn't have domain parameter) (#23905).
 def make_msgid(idstring=None, domain=None):
-    """Returns a string suitable for RFC 2822 compliant Message-ID, e.g:
+    """Returns a string suitable for RFC 5322 compliant Message-ID, e.g:
 
     <20020201195627.33539.96671@nightshade.la.mastaler.com>
 
@@ -90,8 +94,7 @@ def forbid_multi_line_headers(name, val, encoding):
         val.encode('ascii')
     except UnicodeEncodeError:
         if name.lower() in ADDRESS_HEADERS:
-            val = ', '.join(sanitize_address(addr, encoding)
-                for addr in getaddresses((val,)))
+            val = ', '.join(sanitize_address(addr, encoding) for addr in getaddresses((val,)))
         else:
             val = Header(val, encoding).encode()
     else:
@@ -100,27 +103,66 @@ def forbid_multi_line_headers(name, val, encoding):
     return str(name), val
 
 
+def split_addr(addr, encoding):
+    """
+    Split the address into local part and domain, properly encoded.
+
+    When non-ascii characters are present in the local part, it must be
+    MIME-word encoded. The domain name must be idna-encoded if it contains
+    non-ascii characters.
+    """
+    if '@' in addr:
+        localpart, domain = addr.split('@', 1)
+        # Try to get the simplest encoding - ascii if possible so that
+        # to@example.com doesn't become =?utf-8?q?to?=@example.com. This
+        # makes unit testing a bit easier and more readable.
+        try:
+            localpart.encode('ascii')
+        except UnicodeEncodeError:
+            localpart = Header(localpart, encoding).encode()
+        domain = domain.encode('idna').decode('ascii')
+    else:
+        localpart = Header(addr, encoding).encode()
+        domain = ''
+    return (localpart, domain)
+
+
 def sanitize_address(addr, encoding):
-    if isinstance(addr, six.string_types):
+    """
+    Format a pair of (name, address) or an email address string.
+    """
+    if not isinstance(addr, tuple):
         addr = parseaddr(force_text(addr))
     nm, addr = addr
-    # This try-except clause is needed on Python 3 < 3.2.4
-    # http://bugs.python.org/issue14291
-    try:
-        nm = Header(nm, encoding).encode()
-    except UnicodeEncodeError:
-        nm = Header(nm, 'utf-8').encode()
+    localpart, domain = None, None
+    nm = Header(nm, encoding).encode()
     try:
         addr.encode('ascii')
-    except UnicodeEncodeError:  # IDN
-        if '@' in addr:
-            localpart, domain = addr.split('@', 1)
-            localpart = str(Header(localpart, encoding))
-            domain = domain.encode('idna').decode('ascii')
+    except UnicodeEncodeError:  # IDN or non-ascii in the local part
+        localpart, domain = split_addr(addr, encoding)
+
+    if six.PY2:
+        # On Python 2, use the stdlib since `email.headerregistry` doesn't exist.
+        from email.utils import formataddr
+        if localpart and domain:
             addr = '@'.join([localpart, domain])
-        else:
-            addr = Header(addr, encoding).encode()
-    return formataddr((nm, addr))
+        return formataddr((nm, addr))
+
+    # On Python 3, an `email.headerregistry.Address` object is used since
+    # email.utils.formataddr() naively encodes the name as ascii (see #25986).
+    from email.headerregistry import Address
+    from email.errors import InvalidHeaderDefect, NonASCIILocalPartDefect
+
+    if localpart and domain:
+        address = Address(nm, username=localpart, domain=domain)
+        return str(address)
+
+    try:
+        address = Address(nm, addr_spec=addr)
+    except (InvalidHeaderDefect, NonASCIILocalPartDefect):
+        localpart, domain = split_addr(addr, encoding)
+        address = Address(nm, username=localpart, domain=domain)
+    return str(address)
 
 
 class MIMEMixin():
@@ -151,7 +193,7 @@ class MIMEMixin():
             This overrides the default as_bytes() implementation to not mangle
             lines that begin with 'From '. See bug #13433 for details.
             """
-            fp = six.BytesIO()
+            fp = BytesIO()
             g = generator.BytesGenerator(fp, mangle_from_=False)
             g.flatten(self, unixfrom=unixfrom, linesep=linesep)
             return fp.getvalue()
@@ -175,13 +217,10 @@ class SafeMIMEText(MIMEMixin, MIMEText):
             # We do it manually and trigger re-encoding of the payload.
             MIMEText.__init__(self, _text, _subtype, None)
             del self['Content-Transfer-Encoding']
-            # Workaround for versions without http://bugs.python.org/issue19063
-            if (3, 2) < sys.version_info < (3, 3, 4):
-                payload = _text.encode(utf8_charset.output_charset)
-                self._payload = payload.decode('ascii', 'surrogateescape')
-                self.set_charset(utf8_charset)
-            else:
-                self.set_payload(_text, utf8_charset)
+            has_long_lines = any(len(l) > RFC5322_EMAIL_LINE_LENGTH_LIMIT for l in _text.splitlines())
+            # Quoted-Printable encoding has the side effect of shortening long
+            # lines, if any (#22561).
+            self.set_payload(_text, utf8_charset_qp if has_long_lines else utf8_charset)
             self.replace_header('Content-Type', 'text/%s; charset="%s"' % (_subtype, _charset))
         elif _charset is None:
             # the default value of '_charset' is 'us-ascii' on Python 2
@@ -267,11 +306,11 @@ class EmailMessage(object):
         msg = self._create_message(msg)
         msg['Subject'] = self.subject
         msg['From'] = self.extra_headers.get('From', self.from_email)
-        msg['To'] = self.extra_headers.get('To', ', '.join(self.to))
+        msg['To'] = self.extra_headers.get('To', ', '.join(map(force_text, self.to)))
         if self.cc:
-            msg['Cc'] = ', '.join(self.cc)
+            msg['Cc'] = ', '.join(map(force_text, self.cc))
         if self.reply_to:
-            msg['Reply-To'] = self.extra_headers.get('Reply-To', ', '.join(self.reply_to))
+            msg['Reply-To'] = self.extra_headers.get('Reply-To', ', '.join(map(force_text, self.reply_to)))
 
         # Email header names are case-insensitive (RFC 2045), so we have to
         # accommodate that when doing comparisons.
@@ -319,10 +358,36 @@ class EmailMessage(object):
             self.attachments.append((filename, content, mimetype))
 
     def attach_file(self, path, mimetype=None):
-        """Attaches a file from the filesystem."""
+        """
+        Attaches a file from the filesystem.
+
+        The mimetype will be set to the DEFAULT_ATTACHMENT_MIME_TYPE if it is
+        not specified and cannot be guessed or (PY3 only) if it suggests
+        text/* for a binary file.
+        """
         filename = os.path.basename(path)
-        with open(path, 'rb') as f:
-            content = f.read()
+        if not mimetype:
+            mimetype, _ = mimetypes.guess_type(filename)
+            if not mimetype:
+                mimetype = DEFAULT_ATTACHMENT_MIME_TYPE
+        basetype, subtype = mimetype.split('/', 1)
+        read_mode = 'r' if basetype == 'text' else 'rb'
+        content = None
+
+        with open(path, read_mode) as f:
+            try:
+                content = f.read()
+            except UnicodeDecodeError:
+                # If mimetype suggests the file is text but it's actually
+                # binary, read() will raise a UnicodeDecodeError on Python 3.
+                pass
+
+        # If the previous read in text mode failed, try binary mode.
+        if content is None:
+            with open(path, 'rb') as f:
+                content = f.read()
+                mimetype = DEFAULT_ATTACHMENT_MIME_TYPE
+
         self.attach(filename, content, mimetype)
 
     def _create_message(self, msg):
@@ -403,8 +468,8 @@ class EmailMultiAlternatives(EmailMessage):
     alternative_subtype = 'alternative'
 
     def __init__(self, subject='', body='', from_email=None, to=None, bcc=None,
-            connection=None, attachments=None, headers=None, alternatives=None,
-            cc=None, reply_to=None):
+                 connection=None, attachments=None, headers=None, alternatives=None,
+                 cc=None, reply_to=None):
         """
         Initialize a single email message (which can be sent to multiple
         recipients).

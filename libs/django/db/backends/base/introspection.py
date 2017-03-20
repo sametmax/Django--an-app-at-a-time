@@ -6,8 +6,7 @@ from django.utils import six
 TableInfo = namedtuple('TableInfo', ['name', 'type'])
 
 # Structure returned by the DB-API cursor.description interface (PEP 249)
-FieldInfo = namedtuple('FieldInfo',
-    'name type_code display_size internal_size precision scale null_ok')
+FieldInfo = namedtuple('FieldInfo', 'name type_code display_size internal_size precision scale null_ok')
 
 
 class BaseDatabaseIntrospection(object):
@@ -80,7 +79,10 @@ class BaseDatabaseIntrospection(object):
                 if not model._meta.managed:
                     continue
                 tables.add(model._meta.db_table)
-                tables.update(f.m2m_db_table() for f in model._meta.local_many_to_many)
+                tables.update(
+                    f.m2m_db_table() for f in model._meta.local_many_to_many
+                    if f.remote_field.through._meta.managed
+                )
         tables = list(tables)
         if only_existing:
             existing_tables = self.table_names(include_views=include_views)
@@ -125,7 +127,7 @@ class BaseDatabaseIntrospection(object):
                 for f in model._meta.local_many_to_many:
                     # If this is an m2m using an intermediate table,
                     # we don't need to reset the sequence.
-                    if f.rel.through is None:
+                    if f.remote_field.through is None:
                         sequence_list.append({'table': f.m2m_db_table(), 'column': None})
 
         return sequence_list

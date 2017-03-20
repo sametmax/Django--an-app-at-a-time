@@ -1,18 +1,15 @@
 from __future__ import unicode_literals
 
 import logging
-import warnings
 from functools import update_wrapper
 
 from django import http
 from django.core.exceptions import ImproperlyConfigured
-from django.core.urlresolvers import NoReverseMatch, reverse
 from django.template.response import TemplateResponse
+from django.urls import NoReverseMatch, reverse
 from django.utils import six
 from django.utils.decorators import classonlymethod
-from django.utils.deprecation import RemovedInDjango19Warning
 
-_sentinel = object()
 logger = logging.getLogger('django.request')
 
 
@@ -69,6 +66,8 @@ class View(object):
             self.args = args
             self.kwargs = kwargs
             return self.dispatch(request, *args, **kwargs)
+        view.view_class = cls
+        view.view_initkwargs = initkwargs
 
         # take name and docstring from class
         update_wrapper(view, cls, updated=())
@@ -89,11 +88,9 @@ class View(object):
         return handler(request, *args, **kwargs)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
-        logger.warning('Method Not Allowed (%s): %s', request.method, request.path,
-            extra={
-                'status_code': 405,
-                'request': request
-            }
+        logger.warning(
+            'Method Not Allowed (%s): %s', request.method, request.path,
+            extra={'status_code': 405, 'request': request}
         )
         return http.HttpResponseNotAllowed(self._allowed_methods())
 
@@ -152,7 +149,7 @@ class TemplateResponseMixin(object):
 class TemplateView(TemplateResponseMixin, ContextMixin, View):
     """
     A view that renders a template.  This view will also pass into the context
-    any keyword arguments passed by the url conf.
+    any keyword arguments passed by the URLconf.
     """
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
@@ -163,35 +160,10 @@ class RedirectView(View):
     """
     A view that provides a redirect on any GET request.
     """
-    permanent = _sentinel
+    permanent = False
     url = None
     pattern_name = None
     query_string = False
-
-    def __init__(self, *args, **kwargs):
-        if 'permanent' not in kwargs and self.permanent is _sentinel:
-            warnings.warn(
-                "Default value of 'RedirectView.permanent' will change "
-                "from True to False in Django 1.9. Set an explicit value "
-                "to silence this warning.",
-                RemovedInDjango19Warning,
-                stacklevel=2
-            )
-            self.permanent = True
-        super(RedirectView, self).__init__(*args, **kwargs)
-
-    @classonlymethod
-    def as_view(cls, **initkwargs):
-        if 'permanent' not in initkwargs and cls.permanent is _sentinel:
-            warnings.warn(
-                "Default value of 'RedirectView.permanent' will change "
-                "from True to False in Django 1.9. Set an explicit value "
-                "to silence this warning.",
-                RemovedInDjango19Warning,
-                stacklevel=2
-            )
-            initkwargs['permanent'] = True
-        return super(RedirectView, cls).as_view(**initkwargs)
 
     def get_redirect_url(self, *args, **kwargs):
         """
@@ -222,11 +194,10 @@ class RedirectView(View):
             else:
                 return http.HttpResponseRedirect(url)
         else:
-            logger.warning('Gone: %s', request.path,
-                        extra={
-                            'status_code': 410,
-                            'request': request
-                        })
+            logger.warning(
+                'Gone: %s', request.path,
+                extra={'status_code': 410, 'request': request}
+            )
             return http.HttpResponseGone()
 
     def head(self, request, *args, **kwargs):

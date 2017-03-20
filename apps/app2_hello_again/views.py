@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 """
     Puisque tout dans Django est simplement du Python, vous pouvez utiliser

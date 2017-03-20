@@ -1,7 +1,7 @@
 import datetime
 import os
+import posixpath
 import warnings
-from inspect import getargspec
 
 from django import forms
 from django.core import checks
@@ -88,23 +88,8 @@ class FieldFile(File):
 
     def save(self, name, content, save=True):
         name = self.field.generate_filename(self.instance, name)
-
-        args, varargs, varkw, defaults = getargspec(self.storage.save)
-        if 'max_length' in args:
-            self.name = self.storage.save(name, content, max_length=self.field.max_length)
-        else:
-            warnings.warn(
-                'Backwards compatibility for storage backends without '
-                'support for the `max_length` argument in '
-                'Storage.save() will be removed in Django 2.0.',
-                RemovedInDjango20Warning, stacklevel=2
-            )
-            self.name = self.storage.save(name, content)
-
+        self.name = self.storage.save(name, content, max_length=self.field.max_length)
         setattr(self.instance, self.field.name, self.name)
-
-        # Update the filesize cache
-        self._size = content.size
         self._committed = True
 
         # Save the object because it has changed, unless save is False
@@ -125,10 +110,6 @@ class FieldFile(File):
 
         self.name = None
         setattr(self.instance, self.field.name, self.name)
-
-        # Delete the filesize cache
-        if hasattr(self, '_size'):
-            del self._size
         self._committed = False
 
         if save:
@@ -164,18 +145,15 @@ class FileDescriptor(object):
 
     Assigns a file object on assignment so you can do::
 
-        >>> with open('/tmp/hello.world', 'r') as f:
+        >>> with open('/path/to/hello.world', 'r') as f:
         ...     instance.file = File(f)
-
     """
     def __init__(self, field):
         self.field = field
 
-    def __get__(self, instance=None, owner=None):
+    def __get__(self, instance, cls=None):
         if instance is None:
-            raise AttributeError(
-                "The '%s' attribute can only be accessed from %s instances."
-                % (self.field.name, owner.__name__))
+            return self
 
         # This is slightly complicated, so worth an explanation.
         # instance.file`needs to ultimately return some instance of `File`,
@@ -189,7 +167,11 @@ class FileDescriptor(object):
 
         # The instance dict contains whatever was originally assigned
         # in __set__.
-        file = instance.__dict__[self.field.name]
+        if self.field.name in instance.__dict__:
+            file = instance.__dict__[self.field.name]
+        else:
+            instance.refresh_from_db(fields=[self.field.name])
+            file = getattr(instance, self.field.name)
 
         # If this value is a string (instance.file = "path/to/file") or None
         # then we simply wrap it with the appropriate attribute class according
@@ -220,6 +202,10 @@ class FileDescriptor(object):
             file.field = self.field
             file.storage = self.field.storage
 
+        # Make sure that the instance is correct.
+        elif isinstance(file, FieldFile) and instance is not file.instance:
+            file.instance = instance
+
         # That was fun, wasn't it?
         return instance.__dict__[self.field.name]
 
@@ -244,8 +230,6 @@ class FileField(Field):
 
         self.storage = storage or default_storage
         self.upload_to = upload_to
-        if callable(upload_to):
-            self.generate_filename = upload_to
 
         kwargs['max_length'] = kwargs.get('max_length', 100)
         super(FileField, self).__init__(verbose_name, name, **kwargs)
@@ -261,7 +245,6 @@ class FileField(Field):
             return [
                 checks.Error(
                     "'unique' is not a valid argument for a %s." % self.__class__.__name__,
-                    hint=None,
                     obj=self,
                     id='fields.E200',
                 )
@@ -274,7 +257,6 @@ class FileField(Field):
             return [
                 checks.Error(
                     "'primary_key' is not a valid argument for a %s." % self.__class__.__name__,
-                    hint=None,
                     obj=self,
                     id='fields.E201',
                 )
@@ -284,7 +266,7 @@ class FileField(Field):
 
     def deconstruct(self):
         name, path, args, kwargs = super(FileField, self).deconstruct()
-        if kwargs.get("max_length", None) == 100:
+        if kwargs.get("max_length") == 100:
             del kwargs["max_length"]
         kwargs['upload_to'] = self.upload_to
         if self.storage is not default_storage:
@@ -293,11 +275,6 @@ class FileField(Field):
 
     def get_internal_type(self):
         return "FileField"
-
-    def get_prep_lookup(self, lookup_type, value):
-        if hasattr(value, 'name'):
-            value = value.name
-        return super(FileField, self).get_prep_lookup(lookup_type, value)
 
     def get_prep_value(self, value):
         "Returns field's value prepared for saving into a database."
@@ -320,13 +297,34 @@ class FileField(Field):
         setattr(cls, self.name, self.descriptor_class(self))
 
     def get_directory_name(self):
+        warnings.warn(
+            'FileField now delegates file name and folder processing to the '
+            'storage. get_directory_name() will be removed in Django 2.0.',
+            RemovedInDjango20Warning, stacklevel=2
+        )
         return os.path.normpath(force_text(datetime.datetime.now().strftime(force_str(self.upload_to))))
 
     def get_filename(self, filename):
+        warnings.warn(
+            'FileField now delegates file name and folder processing to the '
+            'storage. get_filename() will be removed in Django 2.0.',
+            RemovedInDjango20Warning, stacklevel=2
+        )
         return os.path.normpath(self.storage.get_valid_name(os.path.basename(filename)))
 
     def generate_filename(self, instance, filename):
-        return os.path.join(self.get_directory_name(), self.get_filename(filename))
+        """
+        Apply (if callable) or prepend (if a string) upload_to to the filename,
+        then delegate further processing of the name to the storage backend.
+        Until the storage layer, all file paths are expected to be Unix style
+        (with forward slashes).
+        """
+        if callable(self.upload_to):
+            filename = self.upload_to(instance, filename)
+        else:
+            dirname = force_text(datetime.datetime.now().strftime(force_str(self.upload_to)))
+            filename = posixpath.join(dirname, filename)
+        return self.storage.generate_filename(filename)
 
     def save_form_data(self, instance, data):
         # Important: None means "no change", other false value means "clear"
@@ -388,8 +386,7 @@ class ImageField(FileField):
     descriptor_class = ImageFileDescriptor
     description = _("Image")
 
-    def __init__(self, verbose_name=None, name=None, width_field=None,
-            height_field=None, **kwargs):
+    def __init__(self, verbose_name=None, name=None, width_field=None, height_field=None, **kwargs):
         self.width_field, self.height_field = width_field, height_field
         super(ImageField, self).__init__(verbose_name, name, **kwargs)
 
@@ -444,9 +441,10 @@ class ImageField(FileField):
         Dimensions can be forced to update with force=True, which is how
         ImageFileDescriptor.__set__ calls this method.
         """
-        # Nothing to update if the field doesn't have dimension fields.
+        # Nothing to update if the field doesn't have dimension fields or if
+        # the field is deferred.
         has_dimension_fields = self.width_field or self.height_field
-        if not has_dimension_fields:
+        if not has_dimension_fields or self.attname not in instance.__dict__:
             return
 
         # getattr will call the ImageFileDescriptor's __get__ method, which
@@ -459,8 +457,8 @@ class ImageField(FileField):
             return
 
         dimension_fields_filled = not(
-            (self.width_field and not getattr(instance, self.width_field))
-            or (self.height_field and not getattr(instance, self.height_field))
+            (self.width_field and not getattr(instance, self.width_field)) or
+            (self.height_field and not getattr(instance, self.height_field))
         )
         # When both dimension fields have values, we are most likely loading
         # data from the database or updating an image field that already had

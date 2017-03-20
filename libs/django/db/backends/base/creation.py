@@ -1,15 +1,10 @@
-import hashlib
 import sys
 import time
-import warnings
 
 from django.apps import apps
 from django.conf import settings
 from django.core import serializers
 from django.db import router
-from django.db.backends.utils import truncate_name
-from django.utils.deprecation import RemovedInDjango20Warning
-from django.utils.encoding import force_bytes
 from django.utils.six import StringIO
 from django.utils.six.moves import input
 
@@ -21,9 +16,7 @@ TEST_DATABASE_PREFIX = 'test_'
 class BaseDatabaseCreation(object):
     """
     This class encapsulates all backend-specific differences that pertain to
-    database *creation*, such as the column types to use for particular Django
-    Fields, the SQL used to create and destroy tables, and the creation and
-    destruction of test databases.
+    creation and destruction of the test database.
     """
     def __init__(self, connection):
         self.connection = connection
@@ -34,296 +27,6 @@ class BaseDatabaseCreation(object):
         Used to be defined here, now moved to DatabaseWrapper.
         """
         return self.connection._nodb_connection
-
-    @classmethod
-    def _digest(cls, *args):
-        """
-        Generates a 32-bit digest of a set of arguments that can be used to
-        shorten identifying names.
-        """
-        h = hashlib.md5()
-        for arg in args:
-            h.update(force_bytes(arg))
-        return h.hexdigest()[:8]
-
-    def sql_create_model(self, model, style, known_models=set()):
-        """
-        Returns the SQL required to create a single model, as a tuple of:
-            (list_of_sql, pending_references_dict)
-        """
-        opts = model._meta
-        if not opts.managed or opts.proxy or opts.swapped:
-            return [], {}
-        final_output = []
-        table_output = []
-        pending_references = {}
-        qn = self.connection.ops.quote_name
-        for f in opts.local_fields:
-            db_params = f.db_parameters(connection=self.connection)
-            col_type = db_params['type']
-            if db_params['check']:
-                col_type = '%s CHECK (%s)' % (col_type, db_params['check'])
-            col_type_suffix = f.db_type_suffix(connection=self.connection)
-            tablespace = f.db_tablespace or opts.db_tablespace
-            if col_type is None:
-                # Skip ManyToManyFields, because they're not represented as
-                # database columns in this table.
-                continue
-            # Make the definition (e.g. 'foo VARCHAR(30)') for this field.
-            field_output = [style.SQL_FIELD(qn(f.column)),
-                style.SQL_COLTYPE(col_type)]
-            # Oracle treats the empty string ('') as null, so coerce the null
-            # option whenever '' is a possible value.
-            null = f.null
-            if (f.empty_strings_allowed and not f.primary_key and
-                    self.connection.features.interprets_empty_strings_as_nulls):
-                null = True
-            if not null:
-                field_output.append(style.SQL_KEYWORD('NOT NULL'))
-            if f.primary_key:
-                field_output.append(style.SQL_KEYWORD('PRIMARY KEY'))
-            elif f.unique:
-                field_output.append(style.SQL_KEYWORD('UNIQUE'))
-            if tablespace and f.unique:
-                # We must specify the index tablespace inline, because we
-                # won't be generating a CREATE INDEX statement for this field.
-                tablespace_sql = self.connection.ops.tablespace_sql(
-                    tablespace, inline=True)
-                if tablespace_sql:
-                    field_output.append(tablespace_sql)
-            if f.rel and f.db_constraint:
-                ref_output, pending = self.sql_for_inline_foreign_key_references(
-                    model, f, known_models, style)
-                if pending:
-                    pending_references.setdefault(f.rel.to, []).append(
-                        (model, f))
-                else:
-                    field_output.extend(ref_output)
-            if col_type_suffix:
-                field_output.append(style.SQL_KEYWORD(col_type_suffix))
-            table_output.append(' '.join(field_output))
-        for field_constraints in opts.unique_together:
-            table_output.append(style.SQL_KEYWORD('UNIQUE') + ' (%s)' %
-                ", ".join(
-                    [style.SQL_FIELD(qn(opts.get_field(f).column))
-                     for f in field_constraints]))
-
-        full_statement = [style.SQL_KEYWORD('CREATE TABLE') + ' ' +
-                          style.SQL_TABLE(qn(opts.db_table)) + ' (']
-        for i, line in enumerate(table_output):  # Combine and add commas.
-            full_statement.append(
-                '    %s%s' % (line, ',' if i < len(table_output) - 1 else ''))
-        full_statement.append(')')
-        if opts.db_tablespace:
-            tablespace_sql = self.connection.ops.tablespace_sql(
-                opts.db_tablespace)
-            if tablespace_sql:
-                full_statement.append(tablespace_sql)
-        full_statement.append(';')
-        final_output.append('\n'.join(full_statement))
-
-        if opts.has_auto_field:
-            # Add any extra SQL needed to support auto-incrementing primary
-            # keys.
-            auto_column = opts.auto_field.db_column or opts.auto_field.name
-            autoinc_sql = self.connection.ops.autoinc_sql(opts.db_table,
-                                                          auto_column)
-            if autoinc_sql:
-                for stmt in autoinc_sql:
-                    final_output.append(stmt)
-
-        return final_output, pending_references
-
-    def sql_for_inline_foreign_key_references(self, model, field, known_models, style):
-        """
-        Return the SQL snippet defining the foreign key reference for a field.
-        """
-        qn = self.connection.ops.quote_name
-        rel_to = field.rel.to
-        if rel_to in known_models or rel_to == model:
-            output = [style.SQL_KEYWORD('REFERENCES') + ' ' +
-                style.SQL_TABLE(qn(rel_to._meta.db_table)) + ' (' +
-                style.SQL_FIELD(qn(rel_to._meta.get_field(
-                    field.rel.field_name).column)) + ')' +
-                self.connection.ops.deferrable_sql()
-            ]
-            pending = False
-        else:
-            # We haven't yet created the table to which this field
-            # is related, so save it for later.
-            output = []
-            pending = True
-
-        return output, pending
-
-    def sql_for_pending_references(self, model, style, pending_references):
-        """
-        Returns any ALTER TABLE statements to add constraints after the fact.
-        """
-        opts = model._meta
-        if not opts.managed or opts.swapped:
-            return []
-        qn = self.connection.ops.quote_name
-        final_output = []
-        if model in pending_references:
-            for rel_class, f in pending_references[model]:
-                rel_opts = rel_class._meta
-                r_table = rel_opts.db_table
-                r_col = f.column
-                table = opts.db_table
-                col = opts.get_field(f.rel.field_name).column
-                # For MySQL, r_name must be unique in the first 64 characters.
-                # So we are careful with character usage here.
-                r_name = '%s_refs_%s_%s' % (
-                    r_col, col, self._digest(r_table, table))
-                final_output.append(style.SQL_KEYWORD('ALTER TABLE') +
-                    ' %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s;' %
-                    (qn(r_table), qn(truncate_name(
-                        r_name, self.connection.ops.max_name_length())),
-                    qn(r_col), qn(table), qn(col),
-                    self.connection.ops.deferrable_sql()))
-            del pending_references[model]
-        return final_output
-
-    def sql_indexes_for_model(self, model, style):
-        """
-        Returns the CREATE INDEX SQL statements for a single model.
-        """
-        warnings.warn("DatabaseCreation.sql_indexes_for_model is deprecated, "
-                      "use the equivalent method of the schema editor instead.",
-                      RemovedInDjango20Warning)
-        if not model._meta.managed or model._meta.proxy or model._meta.swapped:
-            return []
-        output = []
-        for f in model._meta.local_fields:
-            output.extend(self.sql_indexes_for_field(model, f, style))
-        for fs in model._meta.index_together:
-            fields = [model._meta.get_field(f) for f in fs]
-            output.extend(self.sql_indexes_for_fields(model, fields, style))
-        return output
-
-    def sql_indexes_for_field(self, model, f, style):
-        """
-        Return the CREATE INDEX SQL statements for a single model field.
-        """
-        if f.db_index and not f.unique:
-            return self.sql_indexes_for_fields(model, [f], style)
-        else:
-            return []
-
-    def sql_indexes_for_fields(self, model, fields, style):
-        if len(fields) == 1 and fields[0].db_tablespace:
-            tablespace_sql = self.connection.ops.tablespace_sql(fields[0].db_tablespace)
-        elif model._meta.db_tablespace:
-            tablespace_sql = self.connection.ops.tablespace_sql(model._meta.db_tablespace)
-        else:
-            tablespace_sql = ""
-        if tablespace_sql:
-            tablespace_sql = " " + tablespace_sql
-
-        field_names = []
-        qn = self.connection.ops.quote_name
-        for f in fields:
-            field_names.append(style.SQL_FIELD(qn(f.column)))
-
-        index_name = "%s_%s" % (model._meta.db_table, self._digest([f.name for f in fields]))
-
-        return [
-            style.SQL_KEYWORD("CREATE INDEX") + " " +
-            style.SQL_TABLE(qn(truncate_name(index_name, self.connection.ops.max_name_length()))) + " " +
-            style.SQL_KEYWORD("ON") + " " +
-            style.SQL_TABLE(qn(model._meta.db_table)) + " " +
-            "(%s)" % style.SQL_FIELD(", ".join(field_names)) +
-            "%s;" % tablespace_sql,
-        ]
-
-    def sql_destroy_model(self, model, references_to_delete, style):
-        """
-        Return the DROP TABLE and restraint dropping statements for a single
-        model.
-        """
-        if not model._meta.managed or model._meta.proxy or model._meta.swapped:
-            return []
-        # Drop the table now
-        qn = self.connection.ops.quote_name
-        output = ['%s %s;' % (style.SQL_KEYWORD('DROP TABLE'),
-                              style.SQL_TABLE(qn(model._meta.db_table)))]
-        if model in references_to_delete:
-            output.extend(self.sql_remove_table_constraints(
-                model, references_to_delete, style))
-        if model._meta.has_auto_field:
-            ds = self.connection.ops.drop_sequence_sql(model._meta.db_table)
-            if ds:
-                output.append(ds)
-        return output
-
-    def sql_remove_table_constraints(self, model, references_to_delete, style):
-        if not model._meta.managed or model._meta.proxy or model._meta.swapped:
-            return []
-        output = []
-        qn = self.connection.ops.quote_name
-        for rel_class, f in references_to_delete[model]:
-            table = rel_class._meta.db_table
-            col = f.column
-            r_table = model._meta.db_table
-            r_col = model._meta.get_field(f.rel.field_name).column
-            r_name = '%s_refs_%s_%s' % (
-                col, r_col, self._digest(table, r_table))
-            output.append('%s %s %s %s;' % (
-                style.SQL_KEYWORD('ALTER TABLE'),
-                style.SQL_TABLE(qn(table)),
-                style.SQL_KEYWORD(self.connection.ops.drop_foreignkey_sql()),
-                style.SQL_FIELD(qn(truncate_name(
-                    r_name, self.connection.ops.max_name_length())))
-            ))
-        del references_to_delete[model]
-        return output
-
-    def sql_destroy_indexes_for_model(self, model, style):
-        """
-        Returns the DROP INDEX SQL statements for a single model.
-        """
-        if not model._meta.managed or model._meta.proxy or model._meta.swapped:
-            return []
-        output = []
-        for f in model._meta.local_fields:
-            output.extend(self.sql_destroy_indexes_for_field(model, f, style))
-        for fs in model._meta.index_together:
-            fields = [model._meta.get_field(f) for f in fs]
-            output.extend(self.sql_destroy_indexes_for_fields(model, fields, style))
-        return output
-
-    def sql_destroy_indexes_for_field(self, model, f, style):
-        """
-        Return the DROP INDEX SQL statements for a single model field.
-        """
-        if f.db_index and not f.unique:
-            return self.sql_destroy_indexes_for_fields(model, [f], style)
-        else:
-            return []
-
-    def sql_destroy_indexes_for_fields(self, model, fields, style):
-        if len(fields) == 1 and fields[0].db_tablespace:
-            tablespace_sql = self.connection.ops.tablespace_sql(fields[0].db_tablespace)
-        elif model._meta.db_tablespace:
-            tablespace_sql = self.connection.ops.tablespace_sql(model._meta.db_tablespace)
-        else:
-            tablespace_sql = ""
-        if tablespace_sql:
-            tablespace_sql = " " + tablespace_sql
-
-        field_names = []
-        qn = self.connection.ops.quote_name
-        for f in fields:
-            field_names.append(style.SQL_FIELD(qn(f.column)))
-
-        index_name = "%s_%s" % (model._meta.db_table, self._digest([f.name for f in fields]))
-
-        return [
-            style.SQL_KEYWORD("DROP INDEX") + " " +
-            style.SQL_TABLE(qn(truncate_name(index_name, self.connection.ops.max_name_length()))) + " " +
-            ";",
-        ]
 
     def create_test_db(self, verbosity=1, autoclobber=False, serialize=True, keepdb=False):
         """
@@ -336,15 +39,14 @@ class BaseDatabaseCreation(object):
         test_database_name = self._get_test_db_name()
 
         if verbosity >= 1:
-            test_db_repr = ''
             action = 'Creating'
-            if verbosity >= 2:
-                test_db_repr = " ('%s')" % test_database_name
             if keepdb:
                 action = "Using existing"
 
-            print("%s test database for alias '%s'%s..." % (
-                action, self.connection.alias, test_db_repr))
+            print("%s test database for alias %s..." % (
+                action,
+                self._get_database_display_str(verbosity, test_database_name),
+            ))
 
         # We could skip this call if keepdb is True, but we instead
         # give it the keepdb param. This is to handle the case
@@ -365,7 +67,7 @@ class BaseDatabaseCreation(object):
             verbosity=max(verbosity - 1, 0),
             interactive=False,
             database=self.connection.alias,
-            test_flush=True,
+            run_syncdb=True,
         )
 
         # We then serialize the current state of the database into a string
@@ -381,6 +83,13 @@ class BaseDatabaseCreation(object):
         self.connection.ensure_connection()
 
         return test_database_name
+
+    def set_as_test_mirror(self, primary_settings_dict):
+        """
+        Set this database up to be used in testing as a mirror of a primary database
+        whose settings are given
+        """
+        self.connection.settings_dict['NAME'] = primary_settings_dict['NAME']
 
     def serialize_db_to_string(self):
         """
@@ -403,7 +112,7 @@ class BaseDatabaseCreation(object):
         # Make a function to iteratively return every object
         def get_objects():
             for model in serializers.sort_dependencies(app_list):
-                if (not model._meta.proxy and model._meta.managed and
+                if (model._meta.can_migrate(self.connection) and
                         router.allow_migrate_model(self.connection.alias, model)):
                     queryset = model._default_manager.using(self.connection.alias).order_by(model._meta.pk.name)
                     for obj in queryset.iterator():
@@ -422,12 +131,21 @@ class BaseDatabaseCreation(object):
         for obj in serializers.deserialize("json", data, using=self.connection.alias):
             obj.save()
 
+    def _get_database_display_str(self, verbosity, database_name):
+        """
+        Return display string for a database for use in various actions.
+        """
+        return "'%s'%s" % (
+            self.connection.alias,
+            (" ('%s')" % database_name) if verbosity >= 2 else '',
+        )
+
     def _get_test_db_name(self):
         """
         Internal implementation - returns the name of the test DB that will be
         created. Only useful when called from create_test_db() and
         _create_test_db() and when no external munging is done with the 'NAME'
-        or 'TEST_NAME' settings.
+        settings.
         """
         if self.connection.settings_dict['TEST']['NAME']:
             return self.connection.settings_dict['TEST']['NAME']
@@ -463,8 +181,9 @@ class BaseDatabaseCreation(object):
                 if autoclobber or confirm == 'yes':
                     try:
                         if verbosity >= 1:
-                            print("Destroying old test database '%s'..."
-                                  % self.connection.alias)
+                            print("Destroying old test database for alias %s..." % (
+                                self._get_database_display_str(verbosity, test_database_name),
+                            ))
                         cursor.execute(
                             "DROP DATABASE %s" % qn(test_database_name))
                         cursor.execute(
@@ -480,22 +199,64 @@ class BaseDatabaseCreation(object):
 
         return test_database_name
 
-    def destroy_test_db(self, old_database_name, verbosity=1, keepdb=False):
+    def clone_test_db(self, number, verbosity=1, autoclobber=False, keepdb=False):
+        """
+        Clone a test database.
+        """
+        source_database_name = self.connection.settings_dict['NAME']
+
+        if verbosity >= 1:
+            action = 'Cloning test database'
+            if keepdb:
+                action = 'Using existing clone'
+            print("%s for alias %s..." % (
+                action,
+                self._get_database_display_str(verbosity, source_database_name),
+            ))
+
+        # We could skip this call if keepdb is True, but we instead
+        # give it the keepdb param. See create_test_db for details.
+        self._clone_test_db(number, verbosity, keepdb)
+
+    def get_test_db_clone_settings(self, number):
+        """
+        Return a modified connection settings dict for the n-th clone of a DB.
+        """
+        # When this function is called, the test database has been created
+        # already and its name has been copied to settings_dict['NAME'] so
+        # we don't need to call _get_test_db_name.
+        orig_settings_dict = self.connection.settings_dict
+        new_settings_dict = orig_settings_dict.copy()
+        new_settings_dict['NAME'] = '{}_{}'.format(orig_settings_dict['NAME'], number)
+        return new_settings_dict
+
+    def _clone_test_db(self, number, verbosity, keepdb=False):
+        """
+        Internal implementation - duplicate the test db tables.
+        """
+        raise NotImplementedError(
+            "The database backend doesn't support cloning databases. "
+            "Disable the option to run tests in parallel processes.")
+
+    def destroy_test_db(self, old_database_name=None, verbosity=1, keepdb=False, number=None):
         """
         Destroy a test database, prompting the user for confirmation if the
         database already exists.
         """
         self.connection.close()
-        test_database_name = self.connection.settings_dict['NAME']
+        if number is None:
+            test_database_name = self.connection.settings_dict['NAME']
+        else:
+            test_database_name = self.get_test_db_clone_settings(number)['NAME']
+
         if verbosity >= 1:
-            test_db_repr = ''
             action = 'Destroying'
-            if verbosity >= 2:
-                test_db_repr = " ('%s')" % test_database_name
             if keepdb:
                 action = 'Preserving'
-            print("%s test database for alias '%s'%s..." % (
-                action, self.connection.alias, test_db_repr))
+            print("%s test database for alias %s..." % (
+                action,
+                self._get_database_display_str(verbosity, test_database_name),
+            ))
 
         # if we want to preserve the database
         # skip the actual destroying piece.
@@ -503,8 +264,9 @@ class BaseDatabaseCreation(object):
             self._destroy_test_db(test_database_name, verbosity)
 
         # Restore the original database name
-        settings.DATABASES[self.connection.alias]["NAME"] = old_database_name
-        self.connection.settings_dict["NAME"] = old_database_name
+        if old_database_name is not None:
+            settings.DATABASES[self.connection.alias]["NAME"] = old_database_name
+            self.connection.settings_dict["NAME"] = old_database_name
 
     def _destroy_test_db(self, test_database_name, verbosity):
         """
@@ -514,7 +276,7 @@ class BaseDatabaseCreation(object):
         # ourselves. Connect to the previous database (not the test database)
         # to do so, because it's not allowed to delete a database while being
         # connected to it.
-        with self._nodb_connection.cursor() as cursor:
+        with self.connection._nodb_connection.cursor() as cursor:
             # Wait to avoid "database is being accessed by other users" errors.
             time.sleep(1)
             cursor.execute("DROP DATABASE %s"
@@ -537,5 +299,5 @@ class BaseDatabaseCreation(object):
             settings_dict['HOST'],
             settings_dict['PORT'],
             settings_dict['ENGINE'],
-            settings_dict['NAME']
+            self._get_test_db_name(),
         )

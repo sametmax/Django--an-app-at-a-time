@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import resolve_url
+from django.utils import six
 from django.utils.decorators import available_attrs
 from django.utils.six.moves.urllib.parse import urlparse
 
@@ -42,7 +43,7 @@ def login_required(function=None, redirect_field_name=REDIRECT_FIELD_NAME, login
     to the log-in page if necessary.
     """
     actual_decorator = user_passes_test(
-        lambda u: u.is_authenticated(),
+        lambda u: u.is_authenticated,
         login_url=login_url,
         redirect_field_name=redirect_field_name
     )
@@ -59,7 +60,7 @@ def permission_required(perm, login_url=None, raise_exception=False):
     is raised.
     """
     def check_perms(user):
-        if not isinstance(perm, (list, tuple)):
+        if isinstance(perm, six.string_types):
             perms = (perm, )
         else:
             perms = perm

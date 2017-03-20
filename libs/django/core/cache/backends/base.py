@@ -74,7 +74,7 @@ class BaseCache(object):
 
         self.key_prefix = params.get('KEY_PREFIX', '')
         self.version = params.get('VERSION', 1)
-        self.key_func = get_key_func(params.get('KEY_FUNCTION', None))
+        self.key_func = get_key_func(params.get('KEY_FUNCTION'))
 
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         """
@@ -91,7 +91,7 @@ class BaseCache(object):
     def make_key(self, key, version=None):
         """Constructs the key used by all other methods. By default it
         uses the key_func to generate a key (which, by default,
-        prepends the `key_prefix' and 'version'). An different key
+        prepends the `key_prefix' and 'version'). A different key
         function can be provided at the time of cache construction;
         alternatively, you can subclass the cache backend to provide
         custom key making behavior.
@@ -147,6 +147,27 @@ class BaseCache(object):
                 d[k] = val
         return d
 
+    def get_or_set(self, key, default=None, timeout=DEFAULT_TIMEOUT, version=None):
+        """
+        Fetch a given key from the cache. If the key does not exist,
+        the key is added and set to the default value. The default value can
+        also be any callable. If timeout is given, that timeout will be used
+        for the key; otherwise the default cache timeout will be used.
+
+        Return the value of the key stored or retrieved.
+        """
+        if default is None:
+            raise ValueError('You need to specify a value.')
+        val = self.get(key, version=version)
+        if val is None:
+            if callable(default):
+                default = default()
+            self.add(key, default, timeout=timeout, version=version)
+            # Fetch the value again to avoid a race condition if another caller
+            # added a value between the first get() and the add() above.
+            return self.get(key, default, version=version)
+        return val
+
     def has_key(self, key, version=None):
         """
         Returns True if the key is in the cache and has not expired.
@@ -195,7 +216,7 @@ class BaseCache(object):
 
     def delete_many(self, keys, version=None):
         """
-        Set a bunch of values in the cache at once.  For certain backends
+        Delete a bunch of values in the cache at once. For certain backends
         (memcached), this is much more efficient than calling delete() multiple
         times.
         """
@@ -211,17 +232,19 @@ class BaseCache(object):
         Warn about keys that would not be portable to the memcached
         backend. This encourages (but does not force) writing backend-portable
         cache code.
-
         """
         if len(key) > MEMCACHE_MAX_KEY_LENGTH:
-            warnings.warn('Cache key will cause errors if used with memcached: '
-                    '%s (longer than %s)' % (key, MEMCACHE_MAX_KEY_LENGTH),
-                    CacheKeyWarning)
+            warnings.warn(
+                'Cache key will cause errors if used with memcached: %r '
+                '(longer than %s)' % (key, MEMCACHE_MAX_KEY_LENGTH), CacheKeyWarning
+            )
         for char in key:
             if ord(char) < 33 or ord(char) == 127:
-                warnings.warn('Cache key contains characters that will cause '
-                        'errors if used with memcached: %r' % key,
-                              CacheKeyWarning)
+                warnings.warn(
+                    'Cache key contains characters that will cause errors if '
+                    'used with memcached: %r' % key, CacheKeyWarning
+                )
+                break
 
     def incr_version(self, key, delta=1, version=None):
         """Adds delta to the cache version for the supplied key. Returns the
@@ -239,7 +262,7 @@ class BaseCache(object):
         return version + delta
 
     def decr_version(self, key, delta=1, version=None):
-        """Substracts delta from the cache version for the supplied key. Returns
+        """Subtracts delta from the cache version for the supplied key. Returns
         the new version.
         """
         return self.incr_version(key, -delta, version)

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 
 #################################################################################
@@ -49,7 +49,6 @@ from project.path import PROJECT_DIR, ROOT_DIR, TEMP_DIR, APPS_DIR
 # ATTENTION : la valeur par défaut est True, vous devriez toujours la mettre
 # sur False en production.
 DEBUG = True
-TEMPLATE_DEBUG = DEBUG
 
 # Où envoyer des alertes emails. Vous n'en avez pas besoin pour le moment.
 ADMINS = (
@@ -168,6 +167,30 @@ STATICFILES_FINDERS = (
 # pas ça dans un dépôt publique.
 SECRET_KEY = '2fhdcfk-0ctkijtc_rqtj2^qw56yc)6$^j4msj3%yn*ib@9ya_'
 
+# Comme Django trouve les templates (les fichiers HTML)
+TEMPLATES = [
+    {
+        # Les chercher localement
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # Liste additionelles de dossiers dans lequels les chercher
+        'DIRS': [],
+        # Chercher dans chaque dossier "templates" de chaque app
+        'APP_DIRS': True,
+        'OPTIONS': {
+            # Liste de callables ajoutant des données automatiquement dans
+            # le context de chaque template. Par défaut le template pourra ici
+            # voir la constate DEBUG, l'objet user authentifié, l'objet
+            # request et les messages flash.
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 # Liste de callables qui savent comment importer les templates depuis divers
 # sources. Comme STATICFILES_FINDERS mais pour les templates HTML.
 TEMPLATE_LOADERS = (
@@ -197,6 +220,15 @@ ROOT_URLCONF = 'project.urls'
 # Le chemin d'import du module de l'application WSGI utilisé par Django.
 # Pour vous, utile uniquement pour la production.
 WSGI_APPLICATION = 'project.wsgi.application'
+
+# Comme STATICFILES_DIRS mais pour les fichiers de templates HTML. Les dossiers
+# 'templates' des apps sont automatiquement détectés.
+TEMPLATE_DIRS = (
+    # Mettez des chaînes de caractères ici, comme "/home/html/django_templates"
+    # or "C:/www/django/templates".
+    # Utilisez toujours des slashs, et non des anti-slashs, même sous Windows.
+    # Utilisez des chemins absolus, pas relatifs.
+)
 
 # Comme STATICFILES_DIRS mais pour les templates HTML. Les dossiers 'templates'
 # de chaque app sont détectés automatiquement.

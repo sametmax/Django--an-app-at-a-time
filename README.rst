@@ -2,13 +2,38 @@
 Django, une app à la fois
 *******************************
 
+Un projet Django lourdement commenté dédié à l'enseignement du framework ou à rafraichir la mémoire. Chaque app fait la démonstration de quelques fonctionalités essentielles de Django de telle sorte qu'on puisse voir comme elles intéragissent ensemble, simplement en regardant le résultat dans son navigateur. Il n'y a rien à faire à part exécuter et lire.
+
+Pour le moment:
+
+- Project : voir comment settings et urls.py fonctionne
+- App 1: hello world
+- App 2: encore hello
+- App 3: routing de base
+- App 4: création de liens
+- App 5: GET, POST et cookies
+- App 6: templates, tags et filters
+- App 7: fichiers statiques
+- App 8: app réutilisable
+
+A venir:
+
+- ORM
+- Formulaires
+- Authentification
+- Admin
+- Commandes
+- Traductions
+
 
 Comment l’utiliser ?
 ======================
 
 Téléchargez et décompressez le projet, puis lancez :
 
-    python ./manage.py runserver
+    python ./manage.py runservers
+
+Vous pouvez ignorer le warning sur les migrations.
 
 Vous n’avez pas besoin d’installer quoi que ce soit.
 

@@ -6,9 +6,7 @@ from django.utils.functional import cached_property
 class BaseDatabaseFeatures(object):
     gis_enabled = False
     allows_group_by_pk = False
-    # True if django.db.backends.utils.typecast_timestamp is used on values
-    # returned from dates() calls.
-    needs_datetime_string_cast = True
+    allows_group_by_selected_pks = False
     empty_fetchmany_value = []
     update_can_self_select = True
 
@@ -26,6 +24,7 @@ class BaseDatabaseFeatures(object):
 
     can_use_chunked_reads = True
     can_return_id_from_insert = False
+    can_return_ids_from_bulk_insert = False
     has_bulk_insert = False
     uses_savepoints = False
     can_release_savepoints = False
@@ -65,6 +64,10 @@ class BaseDatabaseFeatures(object):
 
     # Is there a true datatype for timedeltas?
     has_native_duration_field = False
+
+    # Does the database driver supports same type temporal data subtraction
+    # by returning the type used to store duration field?
+    supports_temporal_subtraction = False
 
     # Does the database driver support timedeltas as arguments?
     # This is only relevant when there is a native duration field.
@@ -123,6 +126,9 @@ class BaseDatabaseFeatures(object):
     # setting (and introspection) of CharFields' nullability.
     # This is True for all core backends.
     can_introspect_null = True
+
+    # Can the backend introspect the default value of a column?
+    can_introspect_default = True
 
     # Confirm support for introspected foreign keys
     # Every database can do this reliably, except MySQL,
@@ -206,6 +212,18 @@ class BaseDatabaseFeatures(object):
 
     # Does the backend support "select for update" queries with limit (and offset)?
     supports_select_for_update_with_limit = True
+
+    # Does the backend ignore null expressions in GREATEST and LEAST queries unless
+    # every expression is null?
+    greatest_least_ignores_nulls = False
+
+    # Can the backend clone databases for parallel test execution?
+    # Defaults to False to allow third-party backends to opt-in.
+    can_clone_databases = False
+
+    # Does the backend consider quoted identifiers with different casing to
+    # be equal?
+    ignores_quoted_identifier_case = False
 
     def __init__(self, connection):
         self.connection = connection

@@ -17,6 +17,7 @@ from django.db import utils
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.backends.base.validation import BaseDatabaseValidation
 from django.utils import six, timezone
+from django.utils.deprecation import RemovedInDjango20Warning
 from django.utils.duration import duration_string
 from django.utils.encoding import force_bytes, force_text
 from django.utils.functional import cached_property
@@ -55,13 +56,13 @@ except ImportError as e:
     raise ImproperlyConfigured("Error loading cx_Oracle module: %s" % e)
 
 # Some of these import cx_Oracle, so import them after checking if it's installed.
-from .client import DatabaseClient                          # isort:skip
-from .creation import DatabaseCreation                      # isort:skip
-from .features import DatabaseFeatures                      # isort:skip
-from .introspection import DatabaseIntrospection            # isort:skip
-from .operations import DatabaseOperations                  # isort:skip
-from .schema import DatabaseSchemaEditor                    # isort:skip
-from .utils import Oracle_datetime, convert_unicode         # isort:skip
+from .client import DatabaseClient                          # NOQA isort:skip
+from .creation import DatabaseCreation                      # NOQA isort:skip
+from .features import DatabaseFeatures                      # NOQA isort:skip
+from .introspection import DatabaseIntrospection            # NOQA isort:skip
+from .operations import DatabaseOperations                  # NOQA isort:skip
+from .schema import DatabaseSchemaEditor                    # NOQA isort:skip
+from .utils import Oracle_datetime, convert_unicode         # NOQA isort:skip
 
 DatabaseError = Database.DatabaseError
 IntegrityError = Database.IntegrityError
@@ -69,7 +70,7 @@ IntegrityError = Database.IntegrityError
 
 class _UninitializedOperatorsDescriptor(object):
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, cls=None):
         # If connection.operators is looked up before a connection has been
         # created, transparently initialize connection.operators to avert an
         # AttributeError.
@@ -91,6 +92,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     # output (the "qn_" prefix is stripped before the lookup is performed.
     data_types = {
         'AutoField': 'NUMBER(11)',
+        'BigAutoField': 'NUMBER(19)',
         'BinaryField': 'BLOB',
         'BooleanField': 'NUMBER(1)',
         'CharField': 'NVARCHAR2(%(max_length)s)',
@@ -226,8 +228,9 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         # TO_CHAR().
         cursor.execute(
             "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'"
-            " NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'"
-            + (" TIME_ZONE = 'UTC'" if settings.USE_TZ else ''))
+            " NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'" +
+            (" TIME_ZONE = 'UTC'" if settings.USE_TZ else '')
+        )
         cursor.close()
         if 'operators' not in self.__dict__:
             # Ticket #14149: Check whether our LIKE implementation will
@@ -336,13 +339,14 @@ class OracleParam(object):
         # without being converted by DateTimeField.get_db_prep_value.
         if settings.USE_TZ and (isinstance(param, datetime.datetime) and
                                 not isinstance(param, Oracle_datetime)):
-            if timezone.is_naive(param):
-                warnings.warn("Oracle received a naive datetime (%s)"
-                              " while time zone support is active." % param,
-                              RuntimeWarning)
-                default_timezone = timezone.get_default_timezone()
-                param = timezone.make_aware(param, default_timezone)
-            param = Oracle_datetime.from_datetime(param.astimezone(timezone.utc))
+            if timezone.is_aware(param):
+                warnings.warn(
+                    "The Oracle database adapter received an aware datetime (%s), "
+                    "probably from cursor.execute(). Update your code to pass a "
+                    "naive datetime in the database connection's time zone (UTC by "
+                    "default).", RemovedInDjango20Warning)
+                param = param.astimezone(timezone.utc).replace(tzinfo=None)
+            param = Oracle_datetime.from_datetime(param)
 
         if isinstance(param, datetime.timedelta):
             param = duration_string(param)
@@ -363,8 +367,7 @@ class OracleParam(object):
         else:
             # To transmit to the database, we need Unicode if supported
             # To get size right, we must consider bytes.
-            self.force_bytes = convert_unicode(param, cursor.charset,
-                                             strings_only)
+            self.force_bytes = convert_unicode(param, cursor.charset, strings_only)
             if isinstance(self.force_bytes, six.string_types):
                 # We could optimize by only converting up to 4000 bytes here
                 string_size = len(force_bytes(param, cursor.charset, strings_only))
@@ -494,8 +497,7 @@ class FormatStylePlaceholderCursor(object):
         formatted = [firstparams] + [self._format_params(p) for p in params_iter]
         self._guess_input_sizes(formatted)
         try:
-            return self.cursor.executemany(query,
-                                [self._param_generator(p) for p in formatted])
+            return self.cursor.executemany(query, [self._param_generator(p) for p in formatted])
         except Database.DatabaseError as e:
             # cx_Oracle <= 4.4.0 wrongly raises a DatabaseError for ORA-01400.
             if hasattr(e.args[0], 'code') and e.args[0].code == 1400 and not isinstance(e, IntegrityError):
@@ -540,8 +542,9 @@ class FormatStylePlaceholderCursor(object):
 
 
 class CursorIterator(six.Iterator):
-
-    """Cursor iterator wrapper that invokes our custom row factory."""
+    """
+    Cursor iterator wrapper that invokes our custom row factory.
+    """
 
     def __init__(self, cursor):
         self.cursor = cursor
@@ -588,12 +591,6 @@ def _rowfactory(row, cursor):
                 value = decimal.Decimal(value)
             else:
                 value = int(value)
-        # datetimes are returned as TIMESTAMP, except the results
-        # of "dates" queries, which are returned as DATETIME.
-        elif desc[1] in (Database.TIMESTAMP, Database.DATETIME):
-            # Confirm that dt is naive before overwriting its tzinfo.
-            if settings.USE_TZ and value is not None and timezone.is_naive(value):
-                value = value.replace(tzinfo=timezone.utc)
         elif desc[1] in (Database.STRING, Database.FIXED_CHAR,
                          Database.LONG_STRING):
             value = to_unicode(value)

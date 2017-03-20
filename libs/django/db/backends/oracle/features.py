@@ -9,7 +9,6 @@ except ImportError:
 
 class DatabaseFeatures(BaseDatabaseFeatures):
     empty_fetchmany_value = ()
-    needs_datetime_string_cast = False
     interprets_empty_strings_as_nulls = True
     uses_savepoints = True
     has_select_for_update = True
@@ -28,6 +27,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     has_bulk_insert = True
     supports_tablespaces = True
     supports_sequence_reset = False
+    can_introspect_default = False  # Pending implementation by an interested person.
     can_introspect_max_length = False
     can_introspect_time_field = False
     atomic_transactions = False
@@ -39,6 +39,10 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     uppercases_column_names = True
     # select for update with limit can be achieved on Oracle, but not with the current backend.
     supports_select_for_update_with_limit = False
+    supports_temporal_subtraction = True
+    # Oracle doesn't ignore quoted identifiers case but the current backend
+    # does by uppercasing all identifiers.
+    ignores_quoted_identifier_case = True
 
     def introspected_boolean_field_type(self, field=None, created_separately=False):
         """

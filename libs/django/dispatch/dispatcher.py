@@ -1,10 +1,14 @@
 import sys
 import threading
+import warnings
 import weakref
 
+from django.utils import six
+from django.utils.deprecation import RemovedInDjango20Warning
+from django.utils.inspect import func_accepts_kwargs
 from django.utils.six.moves import range
 
-if sys.version_info < (3, 4):
+if six.PY2:
     from .weakref_backports import WeakMethod
 else:
     from weakref import WeakMethod
@@ -70,7 +74,7 @@ class Signal(object):
 
             sender
                 The sender to which the receiver should respond. Must either be
-                of type Signal, or None to receive events from any sender.
+                a Python object, or None to receive events from any sender.
 
             weak
                 Whether to use weak references to the receiver. By default, the
@@ -87,24 +91,11 @@ class Signal(object):
 
         # If DEBUG is on, check that we got a good receiver
         if settings.configured and settings.DEBUG:
-            import inspect
             assert callable(receiver), "Signal receivers must be callable."
 
             # Check for **kwargs
-            # Not all callables are inspectable with getargspec, so we'll
-            # try a couple different ways but in the end fall back on assuming
-            # it is -- we don't want to prevent registration of valid but weird
-            # callables.
-            try:
-                argspec = inspect.getargspec(receiver)
-            except TypeError:
-                try:
-                    argspec = inspect.getargspec(receiver.__call__)
-                except (TypeError, AttributeError):
-                    argspec = None
-            if argspec:
-                assert argspec[2] is not None, \
-                    "Signal receivers must accept keyword arguments (**kwargs)."
+            if not func_accepts_kwargs(receiver):
+                raise ValueError("Signal receivers must accept keyword arguments (**kwargs).")
 
         if dispatch_uid:
             lookup_key = (dispatch_uid, _make_id(sender))
@@ -118,7 +109,7 @@ class Signal(object):
             if hasattr(receiver, '__self__') and hasattr(receiver, '__func__'):
                 ref = WeakMethod
                 receiver_object = receiver.__self__
-            if sys.version_info >= (3, 4):
+            if six.PY3:
                 receiver = ref(receiver)
                 weakref.finalize(receiver_object, self._remove_receiver)
             else:
@@ -133,7 +124,7 @@ class Signal(object):
                 self.receivers.append((lookup_key, receiver))
             self.sender_receivers_cache.clear()
 
-    def disconnect(self, receiver=None, sender=None, weak=True, dispatch_uid=None):
+    def disconnect(self, receiver=None, sender=None, weak=None, dispatch_uid=None):
         """
         Disconnect receiver from sender for signal.
 
@@ -149,12 +140,11 @@ class Signal(object):
             sender
                 The registered sender to disconnect
 
-            weak
-                The weakref state to disconnect
-
             dispatch_uid
                 the unique identifier of the receiver to disconnect
         """
+        if weak is not None:
+            warnings.warn("Passing `weak` to disconnect has no effect.", RemovedInDjango20Warning, stacklevel=2)
         if dispatch_uid:
             lookup_key = (dispatch_uid, _make_id(sender))
         else:
@@ -180,13 +170,13 @@ class Signal(object):
         Send signal from sender to all connected receivers.
 
         If any receiver raises an error, the error propagates back through send,
-        terminating the dispatch loop, so it is quite possible to not have all
-        receivers called if a raises an error.
+        terminating the dispatch loop. So it's possible that all receivers
+        won't be called if an error is raised.
 
         Arguments:
 
             sender
-                The sender of the signal Either a specific object or None.
+                The sender of the signal. Either a specific object or None.
 
             named
                 Named arguments which will be passed to receivers.
@@ -315,7 +305,6 @@ def receiver(signal, **kwargs):
         @receiver([post_save, post_delete], sender=MyModel)
         def signals_receiver(sender, **kwargs):
             ...
-
     """
     def _decorator(func):
         if isinstance(signal, (list, tuple)):

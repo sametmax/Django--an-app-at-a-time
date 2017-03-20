@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
+import ignore_me.views
 
-urlpatterns = patterns('',
-    url(r'', 'ignore_me.views.index'),
-)
+urlpatterns = [
+    url(r'', ignore_me.views.index),
+]

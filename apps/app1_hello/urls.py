@@ -1,13 +1,15 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 from django.conf.urls import url
+
+# import la fonction 'hello' du module 'views' de l'app 'app1_hello'"
+from app1_hello.views import hello
 
 
 urlpatterns = [
 
-    # Cela dit à Django d'appeler la fonction 'hello' du module 'views' de
-    # l'app 'app1_hello' pour toute URL.
-    url(r'', 'app1_hello.views.hello'),
+    # Cela dit à Django d'appeler la fonction 'hello' pour tout url
+    url(r'', hello),
 
 ]
 

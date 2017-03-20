@@ -25,5 +25,5 @@ urlpatterns = [
     url(r'^app8/', include('app8_base.urls')),
 
     # Ignorez cela, c'est la page listant toutes les autres apps.
-    url(r'^$', include('ignore_me.urls')),
+    url(r'^', include('ignore_me.urls')),
 ]

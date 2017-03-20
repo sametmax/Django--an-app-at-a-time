@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 """
     La plupart des vues utilisées viennent de la précédente app.

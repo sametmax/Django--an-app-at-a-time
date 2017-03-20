@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-
-from django.conf.urls import url, include
+# coding: utf-8
 
 
 """
@@ -8,19 +6,26 @@ from django.conf.urls import url, include
     vues.
 """
 
+from django.conf.urls import url, include
+
+# on peut importer plusieurs vues sur la même ligne
+from app3_basic_routing.views import hello, index, prefix
+
+# on peut créer des alias pour éviter des conflits de nom
+from app1_hello.views import hello as hello1
 
 urlpatterns = [
 
     # Si l'URL ressemble à ...../prefix/, alors appeler la fonction vue
     # prefix()
 
-    url(r'prefix/$', 'app3_basic_routing.views.prefix'),
+    url(r'prefix/$', prefix),
 
     # On peut lier une URL a une vue de n'importe où (comme depuis une autre app)
-    url(r'hello_from_app1/', 'app1_hello.views.hello'),
+    url(r'hello_from_app1/', hello1),
 
     # On peut aussi inclure un urls.py depuis n'importe où
-    url(r'app2_included/', include('app2_hello_again.urls')),
+    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$', hello),
 
 
     # Nous avons toujours deux parties dans cette déclaration de route :
@@ -40,7 +45,7 @@ urlpatterns = [
     # rationnelles ordinaires, et il vous faut la connaitre si vous voulez
     # utiliser le routing de Django de manière avancée
 
-    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$', 'app3_basic_routing.views.hello'),
+    url(r'(?P<name>\w+)/(?P<prefix>\w+)/$', hello),
 
     # On peut déclarer plusieurs route pour la même vue.
     # Ici nous ajoutons une route sans le préfixe, afin de rendre celui-ci
@@ -49,14 +54,14 @@ urlpatterns = [
     # les plus spécifiques en premières car les URLs seront comparées depuis
     # les motifs du vers ceux du bas.
 
-    url(r'(?P<name>\w+)/$', 'app3_basic_routing.views.hello'),
+    url(r'(?P<name>\w+)/$', hello),
 
 
     # Cette route est la route racine de l'application, vous devez toujours
     # la déclarer en dernier car elle va récupérer toutes les URLS qui ne
     # correspondent pas au reste et donc c'est la vue appelée par défaut.
 
-    url(r'', 'app3_basic_routing.views.index'),
+    url(r'', index),
 
 
 ]

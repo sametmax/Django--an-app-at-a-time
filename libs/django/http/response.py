@@ -18,71 +18,8 @@ from django.utils.encoding import (
 )
 from django.utils.http import cookie_date
 from django.utils.six.moves import map
+from django.utils.six.moves.http_client import responses
 from django.utils.six.moves.urllib.parse import urlparse
-
-# See http://www.iana.org/assignments/http-status-codes
-REASON_PHRASES = {
-    100: 'CONTINUE',
-    101: 'SWITCHING PROTOCOLS',
-    102: 'PROCESSING',
-    200: 'OK',
-    201: 'CREATED',
-    202: 'ACCEPTED',
-    203: 'NON-AUTHORITATIVE INFORMATION',
-    204: 'NO CONTENT',
-    205: 'RESET CONTENT',
-    206: 'PARTIAL CONTENT',
-    207: 'MULTI-STATUS',
-    208: 'ALREADY REPORTED',
-    226: 'IM USED',
-    300: 'MULTIPLE CHOICES',
-    301: 'MOVED PERMANENTLY',
-    302: 'FOUND',
-    303: 'SEE OTHER',
-    304: 'NOT MODIFIED',
-    305: 'USE PROXY',
-    306: 'RESERVED',
-    307: 'TEMPORARY REDIRECT',
-    308: 'PERMANENT REDIRECT',
-    400: 'BAD REQUEST',
-    401: 'UNAUTHORIZED',
-    402: 'PAYMENT REQUIRED',
-    403: 'FORBIDDEN',
-    404: 'NOT FOUND',
-    405: 'METHOD NOT ALLOWED',
-    406: 'NOT ACCEPTABLE',
-    407: 'PROXY AUTHENTICATION REQUIRED',
-    408: 'REQUEST TIMEOUT',
-    409: 'CONFLICT',
-    410: 'GONE',
-    411: 'LENGTH REQUIRED',
-    412: 'PRECONDITION FAILED',
-    413: 'REQUEST ENTITY TOO LARGE',
-    414: 'REQUEST-URI TOO LONG',
-    415: 'UNSUPPORTED MEDIA TYPE',
-    416: 'REQUESTED RANGE NOT SATISFIABLE',
-    417: 'EXPECTATION FAILED',
-    418: "I'M A TEAPOT",
-    422: 'UNPROCESSABLE ENTITY',
-    423: 'LOCKED',
-    424: 'FAILED DEPENDENCY',
-    426: 'UPGRADE REQUIRED',
-    428: 'PRECONDITION REQUIRED',
-    429: 'TOO MANY REQUESTS',
-    431: 'REQUEST HEADER FIELDS TOO LARGE',
-    500: 'INTERNAL SERVER ERROR',
-    501: 'NOT IMPLEMENTED',
-    502: 'BAD GATEWAY',
-    503: 'SERVICE UNAVAILABLE',
-    504: 'GATEWAY TIMEOUT',
-    505: 'HTTP VERSION NOT SUPPORTED',
-    506: 'VARIANT ALSO NEGOTIATES',
-    507: 'INSUFFICIENT STORAGE',
-    508: 'LOOP DETECTED',
-    510: 'NOT EXTENDED',
-    511: 'NETWORK AUTHENTICATION REQUIRED',
-}
-
 
 _charset_from_content_type_re = re.compile(r';\s*charset=(?P<charset>[^\s;]+)', re.I)
 
@@ -100,7 +37,6 @@ class HttpResponseBase(six.Iterator):
     """
 
     status_code = 200
-    reason_phrase = None        # Use default reason phrase for status code.
 
     def __init__(self, content_type=None, status=None, reason=None, charset=None):
         # _headers is a mapping of the lower-case name to the original case of
@@ -115,16 +51,24 @@ class HttpResponseBase(six.Iterator):
         self.closed = False
         if status is not None:
             self.status_code = status
-        if reason is not None:
-            self.reason_phrase = reason
-        elif self.reason_phrase is None:
-            self.reason_phrase = REASON_PHRASES.get(self.status_code,
-                                                    'UNKNOWN STATUS CODE')
+        self._reason_phrase = reason
         self._charset = charset
         if content_type is None:
             content_type = '%s; charset=%s' % (settings.DEFAULT_CONTENT_TYPE,
                                                self.charset)
         self['Content-Type'] = content_type
+
+    @property
+    def reason_phrase(self):
+        if self._reason_phrase is not None:
+            return self._reason_phrase
+        # Leave self._reason_phrase unset in order to use the default
+        # reason phrase for status code.
+        return responses.get(self.status_code, 'Unknown Status Code')
+
+    @reason_phrase.setter
+    def reason_phrase(self, value):
+        self._reason_phrase = value
 
     @property
     def charset(self):
@@ -229,7 +173,6 @@ class HttpResponseBase(six.Iterator):
         - a naive ``datetime.datetime`` object in UTC,
         - an aware ``datetime.datetime`` object in any time zone.
         If it is a ``datetime.datetime`` object then ``max_age`` will be calculated.
-
         """
         value = force_str(value)
         self.cookies[key] = value
@@ -247,6 +190,8 @@ class HttpResponseBase(six.Iterator):
                 max_age = max(0, delta.days * 86400 + delta.seconds)
             else:
                 self.cookies[key]['expires'] = expires
+        else:
+            self.cookies[key]['expires'] = ''
         if max_age is not None:
             self.cookies[key]['max-age'] = max_age
             # IE requires expires, so set it if hasn't been already.
@@ -295,7 +240,7 @@ class HttpResponseBase(six.Iterator):
         return force_bytes(value, self.charset)
 
     # These methods partially implement the file-like object interface.
-    # See http://docs.python.org/lib/bltin-file-objects.html
+    # See https://docs.python.org/3/library/io.html#io.IOBase
 
     # The WSGI server must call this method upon completion of the request.
     # See http://blog.dscpl.com.au/2012/10/obligations-for-calling-close-on.html
@@ -320,6 +265,12 @@ class HttpResponseBase(six.Iterator):
     # These methods partially implement a stream-like object interface.
     # See https://docs.python.org/library/io.html#io.IOBase
 
+    def readable(self):
+        return False
+
+    def seekable(self):
+        return False
+
     def writable(self):
         return False
 
@@ -341,6 +292,13 @@ class HttpResponse(HttpResponseBase):
         # Content is a bytestring. See the `content` property methods.
         self.content = content
 
+    def __repr__(self):
+        return '<%(cls)s status_code=%(status_code)d, "%(content_type)s">' % {
+            'cls': self.__class__.__name__,
+            'status_code': self.status_code,
+            'content_type': self['Content-Type'],
+        }
+
     def serialize(self):
         """Full HTTP message, including headers, as a bytestring."""
         return self.serialize_headers() + b'\r\n\r\n' + self.content
@@ -358,13 +316,16 @@ class HttpResponse(HttpResponseBase):
     def content(self, value):
         # Consume iterators upon assignment to allow repeated iteration.
         if hasattr(value, '__iter__') and not isinstance(value, (bytes, six.string_types)):
+            content = b''.join(self.make_bytes(chunk) for chunk in value)
             if hasattr(value, 'close'):
-                self._closable_objects.append(value)
-            value = b''.join(self.make_bytes(chunk) for chunk in value)
+                try:
+                    value.close()
+                except Exception:
+                    pass
         else:
-            value = self.make_bytes(value)
+            content = self.make_bytes(value)
         # Create a list of properly encoded bytestrings to support write().
-        self._container = [value]
+        self._container = [content]
 
     def __iter__(self):
         return iter(self._container)
@@ -405,8 +366,10 @@ class StreamingHttpResponse(HttpResponseBase):
 
     @property
     def content(self):
-        raise AttributeError("This %s instance has no `content` attribute. "
-            "Use `streaming_content` instead." % self.__class__.__name__)
+        raise AttributeError(
+            "This %s instance has no `content` attribute. Use "
+            "`streaming_content` instead." % self.__class__.__name__
+        )
 
     @property
     def streaming_content(self):
@@ -459,6 +422,14 @@ class HttpResponseRedirectBase(HttpResponse):
 
     url = property(lambda self: self['Location'])
 
+    def __repr__(self):
+        return '<%(cls)s status_code=%(status_code)d, "%(content_type)s", url="%(url)s">' % {
+            'cls': self.__class__.__name__,
+            'status_code': self.status_code,
+            'content_type': self['Content-Type'],
+            'url': self.url,
+        }
+
 
 class HttpResponseRedirect(HttpResponseRedirectBase):
     status_code = 302
@@ -501,6 +472,14 @@ class HttpResponseNotAllowed(HttpResponse):
         super(HttpResponseNotAllowed, self).__init__(*args, **kwargs)
         self['Allow'] = ', '.join(permitted_methods)
 
+    def __repr__(self):
+        return '<%(cls)s [%(methods)s] status_code=%(status_code)d, "%(content_type)s">' % {
+            'cls': self.__class__.__name__,
+            'status_code': self.status_code,
+            'content_type': self['Content-Type'],
+            'methods': self['Allow'],
+        }
+
 
 class HttpResponseGone(HttpResponse):
     status_code = 410
@@ -525,12 +504,18 @@ class JsonResponse(HttpResponse):
       ``django.core.serializers.json.DjangoJSONEncoder``.
     :param safe: Controls if only ``dict`` objects may be serialized. Defaults
       to ``True``.
+    :param json_dumps_params: A dictionary of kwargs passed to json.dumps().
     """
 
-    def __init__(self, data, encoder=DjangoJSONEncoder, safe=True, **kwargs):
+    def __init__(self, data, encoder=DjangoJSONEncoder, safe=True,
+                 json_dumps_params=None, **kwargs):
         if safe and not isinstance(data, dict):
-            raise TypeError('In order to allow non-dict objects to be '
-                'serialized set the safe parameter to False')
+            raise TypeError(
+                'In order to allow non-dict objects to be serialized set the '
+                'safe parameter to False.'
+            )
+        if json_dumps_params is None:
+            json_dumps_params = {}
         kwargs.setdefault('content_type', 'application/json')
-        data = json.dumps(data, cls=encoder)
+        data = json.dumps(data, cls=encoder, **json_dumps_params)
         super(JsonResponse, self).__init__(content=data, **kwargs)

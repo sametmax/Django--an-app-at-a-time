@@ -30,6 +30,9 @@ class Operation(object):
     # DDL transaction support (i.e., does it have no DDL, like RunPython)
     atomic = False
 
+    # Should this operation be considered safe to elide and optimize across?
+    elidable = False
+
     serialization_expand_args = []
 
     def __new__(cls, *args, **kwargs):
@@ -106,10 +109,22 @@ class Operation(object):
         This is a thin wrapper around router.allow_migrate_model() that
         preemptively rejects any proxy, swapped out, or unmanaged model.
         """
-        if model._meta.proxy or model._meta.swapped or not model._meta.managed:
+        if not model._meta.can_migrate(connection_alias):
             return False
 
         return router.allow_migrate_model(connection_alias, model)
+
+    def reduce(self, operation, in_between, app_label=None):
+        """
+        Return either a list of operations the actual operation should be
+        replaced with or a boolean that indicates whether or not the specified
+        operation can be optimized across.
+        """
+        if self.elidable:
+            return [operation]
+        elif operation.elidable:
+            return [self]
+        return False
 
     def __repr__(self):
         return "<%s %s%s>" % (

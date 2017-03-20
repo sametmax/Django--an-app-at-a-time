@@ -16,6 +16,7 @@ from django.db import utils
 from django.db.backends import utils as backend_utils
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.utils import six, timezone
+from django.utils.deprecation import RemovedInDjango20Warning
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.safestring import SafeBytes, SafeText
@@ -42,8 +43,8 @@ from .validation import DatabaseValidation                  # isort:skip
 # lexicographic ordering in this check because then (1, 2, 1, 'gamma')
 # inadvertently passes the version test.
 version = Database.version_info
-if (version < (1, 2, 1) or (version[:3] == (1, 2, 1) and
-        (len(version) < 5 or version[3] != 'final' or version[4] < 2))):
+if (version < (1, 2, 1) or (
+        version[:3] == (1, 2, 1) and (len(version) < 5 or version[3] != 'final' or version[4] < 2))):
     from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured("MySQLdb-1.2.1p2 or newer is required; you have %s" % Database.__version__)
 
@@ -51,27 +52,17 @@ if (version < (1, 2, 1) or (version[:3] == (1, 2, 1) and
 DatabaseError = Database.DatabaseError
 IntegrityError = Database.IntegrityError
 
-# It's impossible to import datetime_or_None directly from MySQLdb.times
-parse_datetime = conversions[FIELD_TYPE.DATETIME]
 
-
-def parse_datetime_with_timezone_support(value):
-    dt = parse_datetime(value)
-    # Confirm that dt is naive before overwriting its tzinfo.
-    if dt is not None and settings.USE_TZ and timezone.is_naive(dt):
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
-def adapt_datetime_with_timezone_support(value, conv):
-    # Equivalent to DateTimeField.get_db_prep_value. Used only by raw SQL.
-    if settings.USE_TZ:
-        if timezone.is_naive(value):
-            warnings.warn("MySQL received a naive datetime (%s)"
-                          " while time zone support is active." % value,
-                          RuntimeWarning)
-            default_timezone = timezone.get_default_timezone()
-            value = timezone.make_aware(value, default_timezone)
+def adapt_datetime_warn_on_aware_datetime(value, conv):
+    # Remove this function and rely on the default adapter in Django 2.0.
+    if settings.USE_TZ and timezone.is_aware(value):
+        warnings.warn(
+            "The MySQL database adapter received an aware datetime (%s), "
+            "probably from cursor.execute(). Update your code to pass a "
+            "naive datetime in the database connection's time zone (UTC by "
+            "default).", RemovedInDjango20Warning)
+        # This doesn't account for the database connection's timezone,
+        # which isn't known. (That's why this adapter is deprecated.)
         value = value.astimezone(timezone.utc).replace(tzinfo=None)
     return Thing2Literal(value.strftime("%Y-%m-%d %H:%M:%S.%f"), conv)
 
@@ -80,21 +71,16 @@ def adapt_datetime_with_timezone_support(value, conv):
 # and Django expects time, so we still need to override that. We also need to
 # add special handling for SafeText and SafeBytes as MySQLdb's type
 # checking is too tight to catch those (see Django ticket #6052).
-# Finally, MySQLdb always returns naive datetime objects. However, when
-# timezone support is active, Django expects timezone-aware datetime objects.
 django_conversions = conversions.copy()
 django_conversions.update({
     FIELD_TYPE.TIME: backend_utils.typecast_time,
     FIELD_TYPE.DECIMAL: backend_utils.typecast_decimal,
     FIELD_TYPE.NEWDECIMAL: backend_utils.typecast_decimal,
-    FIELD_TYPE.DATETIME: parse_datetime_with_timezone_support,
-    datetime.datetime: adapt_datetime_with_timezone_support,
+    datetime.datetime: adapt_datetime_warn_on_aware_datetime,
 })
 
 # This should match the numerical portion of the version numbers (we can treat
-# versions like 5.0.24 and 5.0.24a as the same). Based on the list of version
-# at http://dev.mysql.com/doc/refman/4.1/en/news.html and
-# http://dev.mysql.com/doc/refman/5.0/en/news.html .
+# versions like 5.0.24 and 5.0.24a as the same).
 server_version_re = re.compile(r'(\d{1,2})\.(\d{1,2})\.(\d{1,2})')
 
 
@@ -165,6 +151,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     # If a column type is set to None, it won't be included in the output.
     _data_types = {
         'AutoField': 'integer AUTO_INCREMENT',
+        'BigAutoField': 'bigint AUTO_INCREMENT',
         'BinaryField': 'longblob',
         'BooleanField': 'bool',
         'CharField': 'varchar(%(max_length)s)',
@@ -279,12 +266,13 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return conn
 
     def init_connection_state(self):
-        with self.cursor() as cursor:
-            # SQL_AUTO_IS_NULL in MySQL controls whether an AUTO_INCREMENT column
-            # on a recently-inserted row will return when the field is tested for
-            # NULL.  Disabling this value brings this aspect of MySQL in line with
-            # SQL standards.
-            cursor.execute('SET SQL_AUTO_IS_NULL = 0')
+        if self.features.is_sql_auto_is_null_enabled:
+            with self.cursor() as cursor:
+                # SQL_AUTO_IS_NULL controls whether an AUTO_INCREMENT column on
+                # a recently inserted row will return when the field is tested
+                # for NULL. Disabling this brings this aspect of MySQL in line
+                # with SQL standards.
+                cursor.execute('SET SQL_AUTO_IS_NULL = 0')
 
     def create_cursor(self):
         cursor = self.connection.cursor()
@@ -344,19 +332,27 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                 continue
             key_columns = self.introspection.get_key_columns(cursor, table_name)
             for column_name, referenced_table_name, referenced_column_name in key_columns:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT REFERRING.`%s`, REFERRING.`%s` FROM `%s` as REFERRING
                     LEFT JOIN `%s` as REFERRED
                     ON (REFERRING.`%s` = REFERRED.`%s`)
-                    WHERE REFERRING.`%s` IS NOT NULL AND REFERRED.`%s` IS NULL"""
-                    % (primary_key_column_name, column_name, table_name, referenced_table_name,
-                    column_name, referenced_column_name, column_name, referenced_column_name))
+                    WHERE REFERRING.`%s` IS NOT NULL AND REFERRED.`%s` IS NULL
+                    """ % (
+                        primary_key_column_name, column_name, table_name,
+                        referenced_table_name, column_name, referenced_column_name,
+                        column_name, referenced_column_name,
+                    )
+                )
                 for bad_row in cursor.fetchall():
-                    raise utils.IntegrityError("The row in table '%s' with primary key '%s' has an invalid "
+                    raise utils.IntegrityError(
+                        "The row in table '%s' with primary key '%s' has an invalid "
                         "foreign key: %s.%s contains a value '%s' that does not have a corresponding value in %s.%s."
-                        % (table_name, bad_row[0],
-                        table_name, column_name, bad_row[1],
-                        referenced_table_name, referenced_column_name))
+                        % (
+                            table_name, bad_row[0], table_name, column_name,
+                            bad_row[1], referenced_table_name, referenced_column_name,
+                        )
+                    )
 
     def is_usable(self):
         try:
@@ -368,8 +364,9 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     @cached_property
     def mysql_version(self):
-        with self.temporary_connection():
-            server_info = self.connection.get_server_info()
+        with self.temporary_connection() as cursor:
+            cursor.execute('SELECT VERSION()')
+            server_info = cursor.fetchone()[0]
         match = server_version_re.match(server_info)
         if not match:
             raise Exception('Unable to determine MySQL version from version string %r' % server_info)

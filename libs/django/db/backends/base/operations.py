@@ -4,10 +4,11 @@ import warnings
 from importlib import import_module
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db.backends import utils
 from django.utils import six, timezone
 from django.utils.dateparse import parse_duration
-from django.utils.deprecation import RemovedInDjango19Warning
+from django.utils.deprecation import RemovedInDjango20Warning
 from django.utils.encoding import force_text
 
 
@@ -89,14 +90,11 @@ class BaseDatabaseOperations(object):
         """
         raise NotImplementedError('subclasses of BaseDatabaseOperations may require a datetrunc_sql() method')
 
-    def datetime_cast_sql(self):
+    def datetime_cast_date_sql(self, field_name, tzname):
         """
-        Returns the SQL necessary to cast a datetime value so that it will be
-        retrieved as a Python datetime object instead of a string.
-
-        This SQL should include a '%s' in place of the field's name.
+        Returns the SQL necessary to cast a datetime value to date value.
         """
-        return "%s"
+        raise NotImplementedError('subclasses of BaseDatabaseOperations may require a datetime_cast_date() method')
 
     def datetime_extract_sql(self, lookup_type, field_name, tzname):
         """
@@ -114,6 +112,13 @@ class BaseDatabaseOperations(object):
         a tuple of parameters.
         """
         raise NotImplementedError('subclasses of BaseDatabaseOperations may require a datetime_trunk_sql() method')
+
+    def time_extract_sql(self, lookup_type, field_name):
+        """
+        Given a lookup_type of 'hour', 'minute' or 'second', returns the SQL
+        that extracts a value from the given time field field_name.
+        """
+        return self.date_extract_sql(lookup_type, field_name)
 
     def deferrable_sql(self):
         """
@@ -186,6 +191,7 @@ class BaseDatabaseOperations(object):
         search of the given field_name. Note that the resulting string should
         contain a '%s' placeholder for the value being searched against.
         """
+        # RemovedInDjango20Warning
         raise NotImplementedError('Full-text search is not implemented for this database backend')
 
     def last_executed_query(self, cursor, sql, params):
@@ -199,7 +205,8 @@ class BaseDatabaseOperations(object):
         according to their own quoting schemes.
         """
         # Convert params to contain Unicode values.
-        to_unicode = lambda s: force_text(s, strings_only=True, errors='replace')
+        def to_unicode(s):
+            return force_text(s, strings_only=True, errors='replace')
         if isinstance(params, (list, tuple)):
             u_params = tuple(to_unicode(val) for val in params)
         elif params is None:
@@ -222,7 +229,7 @@ class BaseDatabaseOperations(object):
     def lookup_cast(self, lookup_type, internal_type=None):
         """
         Returns the string to use in a query when performing lookups
-        ("contains", "like", etc). The resulting string should contain a '%s'
+        ("contains", "like", etc.). The resulting string should contain a '%s'
         placeholder for the column being searched against.
         """
         return "%s"
@@ -255,30 +262,22 @@ class BaseDatabaseOperations(object):
         """
         return 'DEFAULT'
 
-    def prepare_sql_script(self, sql, _allow_fallback=False):
+    def prepare_sql_script(self, sql):
         """
-        Takes a SQL script that may contain multiple lines and returns a list
+        Takes an SQL script that may contain multiple lines and returns a list
         of statements to feed to successive cursor.execute() calls.
 
         Since few databases are able to process raw SQL scripts in a single
         cursor.execute() call and PEP 249 doesn't talk about this use case,
         the default implementation is conservative.
         """
-        # Remove _allow_fallback and keep only 'return ...' in Django 1.9.
         try:
-            # This import must stay inside the method because it's optional.
             import sqlparse
         except ImportError:
-            if _allow_fallback:
-                # Without sqlparse, fall back to the legacy (and buggy) logic.
-                warnings.warn(
-                    "Providing initial SQL data on a %s database will require "
-                    "sqlparse in Django 1.9." % self.connection.vendor,
-                    RemovedInDjango19Warning)
-                from django.core.management.sql import _split_statements
-                return _split_statements(sql)
-            else:
-                raise
+            raise ImproperlyConfigured(
+                "sqlparse is required if you don't split your SQL "
+                "statements manually."
+            )
         else:
             return [sqlparse.format(statement, strip_comments=True)
                     for statement in sqlparse.split(sql) if statement]
@@ -377,7 +376,7 @@ class BaseDatabaseOperations(object):
         to tables with foreign keys pointing the tables being truncated.
         PostgreSQL requires a cascade even if these tables are empty.
         """
-        raise NotImplementedError('subclasses of BaseDatabaseOperations must provide a sql_flush() method')
+        raise NotImplementedError('subclasses of BaseDatabaseOperations must provide an sql_flush() method')
 
     def sequence_reset_by_name_sql(self, style, sequences):
         """
@@ -440,7 +439,26 @@ class BaseDatabaseOperations(object):
         """
         return value
 
-    def value_to_db_date(self, value):
+    def adapt_unknown_value(self, value):
+        """
+        Transforms a value to something compatible with the backend driver.
+
+        This method only depends on the type of the value. It's designed for
+        cases where the target type isn't known, such as .raw() SQL queries.
+        As a consequence it may not work perfectly in all circumstances.
+        """
+        if isinstance(value, datetime.datetime):   # must be before date
+            return self.adapt_datetimefield_value(value)
+        elif isinstance(value, datetime.date):
+            return self.adapt_datefield_value(value)
+        elif isinstance(value, datetime.time):
+            return self.adapt_timefield_value(value)
+        elif isinstance(value, decimal.Decimal):
+            return self.adapt_decimalfield_value(value)
+        else:
+            return value
+
+    def adapt_datefield_value(self, value):
         """
         Transforms a date value to an object compatible with what is expected
         by the backend driver for date columns.
@@ -449,7 +467,7 @@ class BaseDatabaseOperations(object):
             return None
         return six.text_type(value)
 
-    def value_to_db_datetime(self, value):
+    def adapt_datetimefield_value(self, value):
         """
         Transforms a datetime value to an object compatible with what is expected
         by the backend driver for datetime columns.
@@ -458,7 +476,7 @@ class BaseDatabaseOperations(object):
             return None
         return six.text_type(value)
 
-    def value_to_db_time(self, value):
+    def adapt_timefield_value(self, value):
         """
         Transforms a time value to an object compatible with what is expected
         by the backend driver for time columns.
@@ -469,19 +487,19 @@ class BaseDatabaseOperations(object):
             raise ValueError("Django does not support timezone-aware times.")
         return six.text_type(value)
 
-    def value_to_db_decimal(self, value, max_digits, decimal_places):
+    def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
         """
         Transforms a decimal.Decimal value to an object compatible with what is
         expected by the backend driver for decimal (numeric) columns.
         """
         return utils.format_number(value, max_digits, decimal_places)
 
-    def value_to_db_ipaddress(self, value):
+    def adapt_ipaddressfield_value(self, value):
         """
         Transforms a string representation of an IP address into the expected
         type for the backend driver.
         """
-        return value
+        return value or None
 
     def year_lookup_bounds_for_date_field(self, value):
         """
@@ -493,6 +511,8 @@ class BaseDatabaseOperations(object):
         """
         first = datetime.date(value, 1, 1)
         second = datetime.date(value, 12, 31)
+        first = self.adapt_datefield_value(first)
+        second = self.adapt_datefield_value(second)
         return [first, second]
 
     def year_lookup_bounds_for_datetime_field(self, value):
@@ -509,13 +529,16 @@ class BaseDatabaseOperations(object):
             tz = timezone.get_current_timezone()
             first = timezone.make_aware(first, tz)
             second = timezone.make_aware(second, tz)
+        first = self.adapt_datetimefield_value(first)
+        second = self.adapt_datetimefield_value(second)
         return [first, second]
 
     def get_db_converters(self, expression):
-        """Get a list of functions needed to convert field data.
+        """
+        Get a list of functions needed to convert field data.
 
         Some field types on some backends do not provide data in the correct
-        format, this is the hook for coverter functions.
+        format, this is the hook for converter functions.
         """
         return []
 
@@ -526,6 +549,10 @@ class BaseDatabaseOperations(object):
         return value
 
     def check_aggregate_support(self, aggregate_func):
+        warnings.warn(
+            "check_aggregate_support has been deprecated. Use "
+            "check_expression_support instead.",
+            RemovedInDjango20Warning, stacklevel=2)
         return self.check_expression_support(aggregate_func)
 
     def check_expression_support(self, expression):
@@ -551,7 +578,14 @@ class BaseDatabaseOperations(object):
     def combine_duration_expression(self, connector, sub_expressions):
         return self.combine_expression(connector, sub_expressions)
 
-    def modify_insert_params(self, placeholders, params):
+    def binary_placeholder_sql(self, value):
+        """
+        Some backends require special syntax to insert binary content (MySQL
+        for example uses '_binary %s').
+        """
+        return '%s'
+
+    def modify_insert_params(self, placeholder, params):
         """Allow modification of insert parameters. Needed for Oracle Spatial
         backend due to #10888.
         """
@@ -564,3 +598,10 @@ class BaseDatabaseOperations(object):
         range of the column type bound to the field.
         """
         return self.integer_field_ranges[internal_type]
+
+    def subtract_temporals(self, internal_type, lhs, rhs):
+        if self.connection.features.supports_temporal_subtraction:
+            lhs_sql, lhs_params = lhs
+            rhs_sql, rhs_params = rhs
+            return "(%s - %s)" % (lhs_sql, rhs_sql), lhs_params + rhs_params
+        raise NotImplementedError("This backend does not support %s subtraction." % internal_type)
