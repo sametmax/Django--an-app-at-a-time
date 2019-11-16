@@ -7,8 +7,10 @@
 *.o
 *.so
 *.pyc
+*.mo
+__pycache__
 
-# Packages #
+# Archives #
 ############
 *.7z
 *.dmg
@@ -24,18 +26,23 @@
 *.log
 *.sql
 *.sqlite
+*.db
 
 # OS generated files #
 ######################
 .DS_Store?
-ehthumbs.db
 Icon?
-Thumbs.db
 *.swp
 .*.swp
 *~
 *.lock
 *.out
+
+# Tooling
+###########
+
+.mypy_cache
+.pytest
 
 # Custom files  #
 #################

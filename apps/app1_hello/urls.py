@@ -1,6 +1,5 @@
-# coding: utf-8
 
-from django.conf.urls import url
+from django.urls import path
 
 
 # import the 'hello' function from the module 'views' of the app 'app1_hello'"
@@ -10,7 +9,7 @@ from app1_hello.views import hello
 urlpatterns = [
 
     # This tells Django to call the function hello for any URL
-    url(r'', hello),
+    path('', hello),
 
 ]
 

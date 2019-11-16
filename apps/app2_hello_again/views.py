@@ -12,7 +12,7 @@
 """
 
 
-from django.template import Context, loader
+from django.template import loader
 from django.http import HttpResponse
 
 
@@ -23,9 +23,7 @@ def hello(request):
 
     # creates the template context from a dictionary, so that in the template
     # you can use the value "world" via the "name" variable
-    d = {"name": "world"}
-    template_context = Context(d)
     template = loader.get_template('hello2.html')
-    html = template.render(template_context)
+    html = template.render({"name": "world"})
 
     return HttpResponse(html)

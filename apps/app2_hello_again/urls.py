@@ -1,6 +1,5 @@
-# coding: utf-8
 
-from django.conf.urls import url
+from django.urls import path
 
 
 # An alternative way is to use relative imports
@@ -8,5 +7,5 @@ from .views import hello
 
 
 urlpatterns = [
-    url(r'', hello),
+    path('', hello),
 ]

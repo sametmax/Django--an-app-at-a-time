@@ -13,11 +13,11 @@
 """
 
 
-from __future__ import unicode_literals
-
 import sys
 import os
 import tempfile
+
+from pathlib import Path
 
 # This part is a bit complicated and is not mandatory for your project, but
 # it renders it completely portable since all directory paths are dynamically
@@ -28,26 +28,16 @@ import tempfile
 # to unicode in case you got non ASCII characters in this name (
 # sys.getfilesystemencoding() get us the file system encoding which can be
 # different for Windows, Mac or Linux)
-FS_ENCODING = sys.getfilesystemencoding()
-try:
-    THIS_FILE = __file__.decode(FS_ENCODING)
-except AttributeError:
-    # In Python 3, __file__ is already decoded
-    THIS_FILE = __file__
+THIS_FILE = Path(__file__)
 
 # We dynamically create these settings, giving us the absolute path
 # to the project directory, the root directory containing all our work
 # and any other directory we might need
-PROJECT_DIR = os.path.dirname(os.path.realpath(os.path.abspath(THIS_FILE)))
-ROOT_DIR = os.path.dirname(PROJECT_DIR)
-APPS_DIR = os.path.join(ROOT_DIR, 'apps')
-LIBS_DIR = os.path.join(ROOT_DIR, 'libs')
-
-try:
-    TEMP_DIR = tempfile.gettempdir().decode(FS_ENCODING)
-except AttributeError:
-    # In Python 3, __file__ is already decoded
-    TEMP_DIR = tempfile.gettempdir()
+PROJECT_DIR = THIS_FILE.absolute().resolve()
+BASE_DIR = PROJECT_DIR.parent.parent
+APPS_DIR = BASE_DIR / 'apps'
+LIBS_DIR = BASE_DIR / 'ignore_this_directory'
+TEMP_DIR = Path(tempfile.gettempdir())
 
 # We add the apps and libs directory to the PYTHON PATH, so we can import each
 # package without prefixing them with the parent package name. This mimic the
@@ -62,5 +52,5 @@ except AttributeError:
 # dir like in the official Django tutorial, but in a big project with a lots of
 # apps, you usually put them all in an "apps" dir like we did, so it's a good
 # thing to know.
-sys.path.append(LIBS_DIR)
-sys.path.append(APPS_DIR)
+sys.path.append(str(LIBS_DIR))
+sys.path.append(str(APPS_DIR))
