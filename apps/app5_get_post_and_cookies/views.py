@@ -16,8 +16,8 @@ def hello(request):
     # it will return it if the key doesn't exist, and return the right value
     # otherwise.
 
-    # Returns the value associated with 'name' passed via COOKIES, or None.
-    name = request.COOKIES.get('name')
+    # Returns the value associated with 'name' passed via COOKIES, or an empty string.
+    name = request.COOKIES.get('name', '')
 
     # Returns the value associated with 'name' passed via POST, or the
     # value from COOKIES.
@@ -28,8 +28,12 @@ def hello(request):
     # This way GET always overwrites the value from POST and COOKIES
     name = request.GET.get('name', name)
 
+    # In case the user put a space at the beginning or end of their name,
+    # strip it, after ensuring it is a string
+    name = str(name).strip()
+    
     # Let's add default value to name
-    if name is None:
+    if not name:
         name = "anonymous"
 
     # Create a dictionary to pass this values in the context. We add
