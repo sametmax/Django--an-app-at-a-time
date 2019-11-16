@@ -1,4 +1,3 @@
-# coding: utf-8
 
 """
     "routing" is declaring what URL will trigger which vue function to be

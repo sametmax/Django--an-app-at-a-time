@@ -1,21 +1,19 @@
-# coding: utf-8
 
-
-from django.conf.urls import url
+from django.urls import path
 from django.views.generic import TemplateView
 
 import app8_base.views
 
 urlpatterns = [
 
-    url(
-        r'example1/',
+    path(
+        'example1/',
         TemplateView.as_view(template_name="app8_base/example_child.html"),
         name="useless_view1"
     ),
 
-    url(
-        r'example2/',
+    path(
+        'example2/',
         TemplateView.as_view(template_name="app8_base/example_child2.html"),
         name="useless_view2"
     ),
@@ -28,8 +26,8 @@ urlpatterns = [
     # We use this to pass a header, a footer and the examples to list in
     # our index. By changing just these values in the next apps, we will be
     # able to reuse the Python code and the template.
-    url(
-        r'', app8_base.views.index,
+    path(
+        '', app8_base.views.index,
         kwargs={
             'title': 'Making a base application',
             'examples': [
@@ -42,7 +40,7 @@ urlpatterns = [
     ),
 
     # Don't be afraid by the illusion of complexity here. It's still just
-    # url(pattern, view, parameters). There parameters are here "kwargs" and
+    # path(pattern, view, parameters). There parameters are here "kwargs" and
     # it's value. It's value is a dictionary. The dictionary has 4 keys : title,
     # examples, header, and footer. The 'examples' key has a list of tuples for
     # value, while 'title', 'header' and 'footer' have a string for value. This

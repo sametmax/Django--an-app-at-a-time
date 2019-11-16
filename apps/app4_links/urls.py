@@ -1,4 +1,3 @@
-# coding: utf-8
 
 """
     When you start having a lot of routes, you can give them names, and
