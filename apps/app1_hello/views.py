@@ -16,7 +16,7 @@ def hello(request):
 # response.                                                                      #
 #                                                                                #
 # This function is called automatically when the URL in the urls.py file that    #
-# points to it is reached.                                                        #
+# points to it is reached.                                                       #
 #                                                                                #
 # The request object is passed automatically by Django, and we can do whatever   #
 # we want in the function body.                                                  #
