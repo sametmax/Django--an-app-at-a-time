@@ -14,6 +14,7 @@ framework.
 
 """
 import os
+import sys
 
 # We defer to a DJANGO_SETTINGS_MODULE already in the environment. This breaks
 # if running multiple sites in the same mod_wsgi process. To fix this, use
@@ -21,12 +22,13 @@ import os
 # os.environ["DJANGO_SETTINGS_MODULE"] = "project.settings"
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")
 
+# Hack pour ajouter "ignore_this_directory" dans le PYTHON PATH
+# ce qui n'est pas dans le wsgi.py original
+from project import settings
+sys.path.append(str(settings.BASE_DIR / 'ignore_this_directory'))
+
 # This application object is used by any WSGI server configured to use this
 # file. This includes Django's development server, if the WSGI_APPLICATION
 # setting points here.
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
-
-# Apply WSGI middleware here.
-# from helloworld.wsgi import HelloWorldApplication
-# application = HelloWorldApplication(application)

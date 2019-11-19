@@ -1,23 +1,19 @@
-# coding: utf-8
 
-
-from __future__ import unicode_literals
-
-from django.conf.urls import url
+from django.urls import path
 from django.views.generic import TemplateView
 
 import app8_base.views
 
 urlpatterns = [
 
-    url(
-        r'example1/',
+    path(
+        'example1/',
         TemplateView.as_view(template_name="app8_base/example_child.html"),
         name="useless_view1"
     ),
 
-    url(
-        r'example2/',
+    path(
+        'example2/',
         TemplateView.as_view(template_name="app8_base/example_child2.html"),
         name="useless_view2"
     ),
@@ -30,8 +26,8 @@ urlpatterns = [
     # Nous utilisons cela pour passer un header, un footer et les exemples
     # à lister dans notre index. En changeant juste ces valeurs dans la
     # prochaine app, nous pourrons réutiliser le code Python et le template.
-    url(
-        r'', app8_base.views.index,
+    path(
+        '', app8_base.views.index,
         kwargs={
             'title': 'Making a base application',
             'examples': [

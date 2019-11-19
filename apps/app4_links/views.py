@@ -1,4 +1,4 @@
-# coding: utf-8
+
 
 """
     La plupart des vues utilisées viennent de la précédente app.
@@ -6,7 +6,7 @@
 
 
 from django.shortcuts import render
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 
 def index(request):

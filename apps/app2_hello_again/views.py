@@ -1,4 +1,3 @@
-# coding: utf-8
 
 """
     Puisque tout dans Django est simplement du Python, vous pouvez utiliser
@@ -25,9 +24,7 @@ def hello(request):
     # crée un contexte de template depuis un dictionnaire, de telle sorte
     # que notre template puisse utiliser le mot "world" à travers la variable
     # "name"
-    d = {"name": "world"}
-    template_context = Context(d)
     template = loader.get_template('hello.html')
-    html = template.render(template_context)
+    html = template.render({"name": "world"})
 
     return HttpResponse(html)

@@ -1,11 +1,10 @@
-# coding: utf-8
 
-from django.conf.urls import url
+from django.urls import path
 
 import app5_get_post_and_cookies.views
 
 urlpatterns = [
 
-    url(r'', app5_get_post_and_cookies.views.hello),
+    path('', app5_get_post_and_cookies.views.hello),
 
 ]
