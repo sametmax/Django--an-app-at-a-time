@@ -11,6 +11,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     cast_data_types = {
         'AutoField': 'integer',
         'BigAutoField': 'bigint',
+        'SmallAutoField': 'smallint',
     }
 
     def unification_cast_sql(self, output_field):
@@ -40,9 +41,16 @@ class DatabaseOperations(BaseDatabaseOperations):
         # https://www.postgresql.org/docs/current/functions-datetime.html#FUNCTIONS-DATETIME-TRUNC
         return "DATE_TRUNC('%s', %s)" % (lookup_type, field_name)
 
+    def _prepare_tzname_delta(self, tzname):
+        if '+' in tzname:
+            return tzname.replace('+', '-')
+        elif '-' in tzname:
+            return tzname.replace('-', '+')
+        return tzname
+
     def _convert_field_to_tz(self, field_name, tzname):
         if settings.USE_TZ:
-            field_name = "%s AT TIME ZONE '%s'" % (field_name, tzname)
+            field_name = "%s AT TIME ZONE '%s'" % (field_name, self._prepare_tzname_delta(tzname))
         return field_name
 
     def datetime_cast_date_sql(self, field_name, tzname):
@@ -68,13 +76,12 @@ class DatabaseOperations(BaseDatabaseOperations):
     def deferrable_sql(self):
         return " DEFERRABLE INITIALLY DEFERRED"
 
-    def fetch_returned_insert_ids(self, cursor):
+    def fetch_returned_insert_rows(self, cursor):
         """
         Given a cursor object that has just performed an INSERT...RETURNING
-        statement into a table that has an auto-incrementing ID, return the
-        list of newly created IDs.
+        statement into a table, return the tuple of returned data.
         """
-        return [item[0] for item in cursor.fetchall()]
+        return cursor.fetchall()
 
     def lookup_cast(self, lookup_type, internal_type=None):
         lookup = '%s'
@@ -222,14 +229,22 @@ class DatabaseOperations(BaseDatabaseOperations):
             return ['DISTINCT'], []
 
     def last_executed_query(self, cursor, sql, params):
-        # http://initd.org/psycopg/docs/cursor.html#cursor.query
+        # https://www.psycopg.org/docs/cursor.html#cursor.query
         # The query attribute is a Psycopg extension to the DB API 2.0.
         if cursor.query is not None:
             return cursor.query.decode()
         return None
 
-    def return_insert_id(self):
-        return "RETURNING %s", ()
+    def return_insert_columns(self, fields):
+        if not fields:
+            return '', ()
+        columns = [
+            '%s.%s' % (
+                self.quote_name(field.model._meta.db_table),
+                self.quote_name(field.column),
+            ) for field in fields
+        ]
+        return 'RETURNING %s' % ', '.join(columns), ()
 
     def bulk_insert_sql(self, fields, placeholder_rows):
         placeholder_rows_sql = (", ".join(row) for row in placeholder_rows)
@@ -254,7 +269,8 @@ class DatabaseOperations(BaseDatabaseOperations):
         if internal_type == 'DateField':
             lhs_sql, lhs_params = lhs
             rhs_sql, rhs_params = rhs
-            return "(interval '1 day' * (%s - %s))" % (lhs_sql, rhs_sql), lhs_params + rhs_params
+            params = (*lhs_params, *rhs_params)
+            return "(interval '1 day' * (%s - %s))" % (lhs_sql, rhs_sql), params
         return super().subtract_temporals(internal_type, lhs, rhs)
 
     def window_frame_range_start_end(self, start=None, end=None):

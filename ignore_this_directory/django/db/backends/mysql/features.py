@@ -27,8 +27,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     allows_auto_pk_0 = False
     can_release_savepoints = True
     atomic_transactions = False
-    supports_column_check_constraints = False
-    supports_table_check_constraints = False
     can_clone_databases = True
     supports_temporal_subtraction = True
     supports_select_intersection = False
@@ -71,10 +69,11 @@ class DatabaseFeatures(BaseDatabaseFeatures):
 
     @cached_property
     def has_zoneinfo_database(self):
-        # Test if the time zone definitions are installed.
+        # Test if the time zone definitions are installed. CONVERT_TZ returns
+        # NULL if 'UTC' timezone isn't loaded into the mysql.time_zone.
         with self.connection.cursor() as cursor:
-            cursor.execute("SELECT 1 FROM mysql.time_zone LIMIT 1")
-            return cursor.fetchone() is not None
+            cursor.execute("SELECT CONVERT_TZ('2001-01-01 01:00:00', 'UTC', 'UTC')")
+            return cursor.fetchone()[0] is not None
 
     @cached_property
     def is_sql_auto_is_null_enabled(self):
@@ -90,10 +89,29 @@ class DatabaseFeatures(BaseDatabaseFeatures):
         return self.connection.mysql_version >= (8, 0, 2)
 
     @cached_property
+    def supports_column_check_constraints(self):
+        if self.connection.mysql_is_mariadb:
+            return self.connection.mysql_version >= (10, 2, 1)
+        return self.connection.mysql_version >= (8, 0, 16)
+
+    supports_table_check_constraints = property(operator.attrgetter('supports_column_check_constraints'))
+
+    @cached_property
+    def can_introspect_check_constraints(self):
+        if self.connection.mysql_is_mariadb:
+            version = self.connection.mysql_version
+            return (version >= (10, 2, 22) and version < (10, 3)) or version >= (10, 3, 10)
+        return self.connection.mysql_version >= (8, 0, 16)
+
+    @cached_property
     def has_select_for_update_skip_locked(self):
         return not self.connection.mysql_is_mariadb and self.connection.mysql_version >= (8, 0, 1)
 
-    has_select_for_update_nowait = property(operator.attrgetter('has_select_for_update_skip_locked'))
+    @cached_property
+    def has_select_for_update_nowait(self):
+        if self.connection.mysql_is_mariadb:
+            return self.connection.mysql_version >= (10, 3, 0)
+        return self.connection.mysql_version >= (8, 0, 1)
 
     @cached_property
     def needs_explain_extended(self):

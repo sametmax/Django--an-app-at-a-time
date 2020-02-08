@@ -1,5 +1,3 @@
-import sys
-
 from django.db.backends.base.features import BaseDatabaseFeatures
 
 from .base import Database
@@ -15,17 +13,18 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_timezones = False
     max_query_params = 999
     supports_mixed_date_datetime_comparisons = False
-    autocommits_when_autocommit_is_off = sys.version_info < (3, 6)
     can_introspect_autofield = True
     can_introspect_decimal_field = False
     can_introspect_duration_field = False
     can_introspect_positive_integer_field = True
     can_introspect_small_integer_field = True
     introspected_big_auto_field_type = 'AutoField'
+    introspected_small_auto_field_type = 'AutoField'
     supports_transactions = True
     atomic_transactions = False
     can_rollback_ddl = True
     supports_atomic_references_rename = Database.sqlite_version_info >= (3, 26, 0)
+    can_create_inline_fk = False
     supports_paramstyle_pyformat = False
     supports_sequence_reset = False
     can_clone_databases = True
@@ -42,3 +41,4 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_pragma_foreign_key_check = Database.sqlite_version_info >= (3, 20, 0)
     can_defer_constraint_checks = supports_pragma_foreign_key_check
     supports_functions_in_partial_indexes = Database.sqlite_version_info >= (3, 15, 0)
+    supports_over_clause = Database.sqlite_version_info >= (3, 25, 0)

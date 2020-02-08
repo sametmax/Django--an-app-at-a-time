@@ -14,7 +14,7 @@ from urllib.parse import (
 
 from django.core.exceptions import TooManyFieldsSent
 from django.utils.datastructures import MultiValueDict
-from django.utils.deprecation import RemovedInDjango30Warning
+from django.utils.deprecation import RemovedInDjango40Warning
 from django.utils.functional import keep_lazy_text
 
 # based on RFC 7232, Appendix C
@@ -50,6 +50,11 @@ def urlquote(url, safe='/'):
     A legacy compatibility wrapper to Python's urllib.parse.quote() function.
     (was used for unicode handling on Python 2)
     """
+    warnings.warn(
+        'django.utils.http.urlquote() is deprecated in favor of '
+        'urllib.parse.quote().',
+        RemovedInDjango40Warning, stacklevel=2,
+    )
     return quote(url, safe)
 
 
@@ -59,6 +64,11 @@ def urlquote_plus(url, safe=''):
     A legacy compatibility wrapper to Python's urllib.parse.quote_plus()
     function. (was used for unicode handling on Python 2)
     """
+    warnings.warn(
+        'django.utils.http.urlquote_plus() is deprecated in favor of '
+        'urllib.parse.quote_plus(),',
+        RemovedInDjango40Warning, stacklevel=2,
+    )
     return quote_plus(url, safe)
 
 
@@ -68,6 +78,11 @@ def urlunquote(quoted_url):
     A legacy compatibility wrapper to Python's urllib.parse.unquote() function.
     (was used for unicode handling on Python 2)
     """
+    warnings.warn(
+        'django.utils.http.urlunquote() is deprecated in favor of '
+        'urllib.parse.unquote().',
+        RemovedInDjango40Warning, stacklevel=2,
+    )
     return unquote(quoted_url)
 
 
@@ -77,6 +92,11 @@ def urlunquote_plus(quoted_url):
     A legacy compatibility wrapper to Python's urllib.parse.unquote_plus()
     function. (was used for unicode handling on Python 2)
     """
+    warnings.warn(
+        'django.utils.http.urlunquote_plus() is deprecated in favor of '
+        'urllib.parse.unquote_plus().',
+        RemovedInDjango40Warning, stacklevel=2,
+    )
     return unquote_plus(quoted_url)
 
 
@@ -93,10 +113,10 @@ def urlencode(query, doseq=False):
     for key, value in query:
         if value is None:
             raise TypeError(
-                'Cannot encode None in a query string. Did you mean to pass '
-                'an empty string or omit the value?'
+                "Cannot encode None for key '%s' in a query string. Did you "
+                "mean to pass an empty string or omit the value?" % key
             )
-        elif isinstance(value, (str, bytes)):
+        elif not doseq or isinstance(value, (str, bytes)):
             query_val = value
         else:
             try:
@@ -104,39 +124,21 @@ def urlencode(query, doseq=False):
             except TypeError:
                 query_val = value
             else:
-                # Consume generators and iterators, even when doseq=True, to
+                # Consume generators and iterators, when doseq=True, to
                 # work around https://bugs.python.org/issue31706.
                 query_val = []
                 for item in itr:
                     if item is None:
                         raise TypeError(
-                            'Cannot encode None in a query string. Did you '
-                            'mean to pass an empty string or omit the value?'
+                            "Cannot encode None for key '%s' in a query "
+                            "string. Did you mean to pass an empty string or "
+                            "omit the value?" % key
                         )
                     elif not isinstance(item, bytes):
                         item = str(item)
                     query_val.append(item)
         query_params.append((key, query_val))
     return original_urlencode(query_params, doseq)
-
-
-def cookie_date(epoch_seconds=None):
-    """
-    Format the time to ensure compatibility with Netscape's cookie standard.
-
-    `epoch_seconds` is a floating point number expressed in seconds since the
-    epoch, in UTC - such as that outputted by time.time(). If set to None, it
-    defaults to the current time.
-
-    Output a string in the format 'Wdy, DD-Mon-YYYY HH:MM:SS GMT'.
-    """
-    warnings.warn(
-        'cookie_date() is deprecated in favor of http_date(), which follows '
-        'the format of the latest RFC.',
-        RemovedInDjango30Warning, stacklevel=2,
-    )
-    rfcdate = formatdate(epoch_seconds)
-    return '%s-%s-%s GMT' % (rfcdate[:7], rfcdate[8:11], rfcdate[12:25])
 
 
 def http_date(epoch_seconds=None):
@@ -174,10 +176,14 @@ def parse_http_date(date):
     try:
         year = int(m.group('year'))
         if year < 100:
-            if year < 70:
-                year += 2000
+            current_year = datetime.datetime.utcnow().year
+            current_century = current_year - (current_year % 100)
+            if year - (current_year % 100) > 50:
+                # year that appears to be more than 50 years in the future are
+                # interpreted as representing the past.
+                year += current_century - 100
             else:
-                year += 1900
+                year += current_century
         month = MONTHS.index(m.group('mon').lower()) + 1
         day = int(m.group('day'))
         hour = int(m.group('hour'))
@@ -292,15 +298,18 @@ def is_same_domain(host, pattern):
     )
 
 
-def is_safe_url(url, allowed_hosts, require_https=False):
+def url_has_allowed_host_and_scheme(url, allowed_hosts, require_https=False):
     """
-    Return ``True`` if the url is a safe redirection (i.e. it doesn't point to
-    a different host and uses a safe scheme).
+    Return ``True`` if the url uses an allowed host and a safe scheme.
 
     Always return ``False`` on an empty url.
 
     If ``require_https`` is ``True``, only 'https' will be considered a valid
     scheme, as opposed to 'http' and 'https' with the default, ``False``.
+
+    Note: "True" doesn't entail that a URL is "safe". It may still be e.g.
+    quoted incorrectly. Ensure to also use django.utils.encoding.iri_to_uri()
+    on the path component of untrusted URLs.
     """
     if url is not None:
         url = url.strip()
@@ -312,8 +321,19 @@ def is_safe_url(url, allowed_hosts, require_https=False):
         allowed_hosts = {allowed_hosts}
     # Chrome treats \ completely as / in paths but it could be part of some
     # basic auth credentials so we need to check both URLs.
-    return (_is_safe_url(url, allowed_hosts, require_https=require_https) and
-            _is_safe_url(url.replace('\\', '/'), allowed_hosts, require_https=require_https))
+    return (
+        _url_has_allowed_host_and_scheme(url, allowed_hosts, require_https=require_https) and
+        _url_has_allowed_host_and_scheme(url.replace('\\', '/'), allowed_hosts, require_https=require_https)
+    )
+
+
+def is_safe_url(url, allowed_hosts, require_https=False):
+    warnings.warn(
+        'django.utils.http.is_safe_url() is deprecated in favor of '
+        'url_has_allowed_host_and_scheme().',
+        RemovedInDjango40Warning, stacklevel=2,
+    )
+    return url_has_allowed_host_and_scheme(url, allowed_hosts, require_https)
 
 
 # Copied from urllib.parse.urlparse() but uses fixed urlsplit() function.
@@ -365,7 +385,7 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     return _coerce_result(v)
 
 
-def _is_safe_url(url, allowed_hosts, require_https=False):
+def _url_has_allowed_host_and_scheme(url, allowed_hosts, require_https=False):
     # Chrome considers any URL with more than two slashes to be absolute, but
     # urlparse is not so flexible. Treat any url with three slashes as unsafe.
     if url.startswith('///'):

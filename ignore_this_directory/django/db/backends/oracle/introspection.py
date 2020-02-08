@@ -35,6 +35,8 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             if scale == 0:
                 if precision > 11:
                     return 'BigAutoField' if description.is_autofield else 'BigIntegerField'
+                elif 1 < precision < 6 and description.is_autofield:
+                    return 'SmallAutoField'
                 elif precision == 1:
                     return 'BooleanField'
                 elif description.is_autofield:
@@ -172,6 +174,22 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             tuple(self.identifier_converter(cell) for cell in row)
             for row in cursor.fetchall()
         ]
+
+    def get_primary_key_column(self, cursor, table_name):
+        cursor.execute("""
+            SELECT
+                cols.column_name
+            FROM
+                user_constraints,
+                user_cons_columns cols
+            WHERE
+                user_constraints.constraint_name = cols.constraint_name AND
+                user_constraints.constraint_type = 'P' AND
+                user_constraints.table_name = UPPER(%s) AND
+                cols.position = 1
+        """, [table_name])
+        row = cursor.fetchone()
+        return self.identifier_converter(row[0]) if row else None
 
     def get_constraints(self, cursor, table_name):
         """

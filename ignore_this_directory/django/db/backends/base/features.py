@@ -22,8 +22,9 @@ class BaseDatabaseFeatures:
     supports_partially_nullable_unique_constraints = True
 
     can_use_chunked_reads = True
-    can_return_id_from_insert = False
-    can_return_ids_from_bulk_insert = False
+    can_return_columns_from_insert = False
+    can_return_multiple_columns_from_insert = False
+    can_return_rows_from_bulk_insert = False
     has_bulk_insert = True
     uses_savepoints = True
     can_release_savepoints = False
@@ -143,9 +144,10 @@ class BaseDatabaseFeatures:
     # Can the backend introspect a TimeField, instead of a DateTimeField?
     can_introspect_time_field = True
 
-    # Some backends may not be able to differentiate BigAutoField from other
-    # fields such as AutoField.
+    # Some backends may not be able to differentiate BigAutoField or
+    # SmallAutoField from other fields such as AutoField.
     introspected_big_auto_field_type = 'BigAutoField'
+    introspected_small_auto_field_type = 'SmallAutoField'
 
     # Some backends may not be able to differentiate BooleanField from other
     # fields such as IntegerField.
@@ -159,10 +161,6 @@ class BaseDatabaseFeatures:
 
     # Support for the DISTINCT ON clause
     can_distinct_on_fields = False
-
-    # Does the backend decide to commit before SAVEPOINT statements
-    # when autocommit is disabled? https://bugs.python.org/issue8145#msg109965
-    autocommits_when_autocommit_is_off = False
 
     # Does the backend prevent running SQL queries in broken transactions?
     atomic_transactions = True
@@ -179,9 +177,14 @@ class BaseDatabaseFeatures:
     # Does it support foreign keys?
     supports_foreign_keys = True
 
+    # Can it create foreign key constraints inline when adding columns?
+    can_create_inline_fk = True
+
     # Does it support CHECK constraints?
     supports_column_check_constraints = True
     supports_table_check_constraints = True
+    # Does the backend support introspection of CHECK constraints?
+    can_introspect_check_constraints = True
 
     # Does the backend support 'pyformat' style ("... %(name)s ...", {'name': value})
     # parameter passing? Note this can be provided by the backend even if not
@@ -240,6 +243,7 @@ class BaseDatabaseFeatures:
 
     # Does the backend support window expressions (expression OVER (...))?
     supports_over_clause = False
+    supports_frame_range_fixed_distance = False
 
     # Does the backend support CAST with precision?
     supports_cast_with_precision = True
@@ -285,6 +289,9 @@ class BaseDatabaseFeatures:
     # field(s)?
     allows_multiple_constraints_on_same_fields = True
 
+    # Does the backend support boolean expressions in the SELECT clause?
+    supports_boolean_expr_in_select_clause = True
+
     def __init__(self, connection):
         self.connection = connection
 
@@ -306,3 +313,8 @@ class BaseDatabaseFeatures:
             count, = cursor.fetchone()
             cursor.execute('DROP TABLE ROLLBACK_TEST')
         return count == 0
+
+    def allows_group_by_selected_pks_on_model(self, model):
+        if not self.allows_group_by_selected_pks:
+            return False
+        return model._meta.managed

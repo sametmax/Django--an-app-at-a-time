@@ -2,7 +2,6 @@ import functools
 import itertools
 import logging
 import os
-import pathlib
 import signal
 import subprocess
 import sys
@@ -78,19 +77,22 @@ def raise_last_exception():
 
 
 def ensure_echo_on():
-    if termios:
-        fd = sys.stdin
-        if fd.isatty():
-            attr_list = termios.tcgetattr(fd)
-            if not attr_list[3] & termios.ECHO:
-                attr_list[3] |= termios.ECHO
-                if hasattr(signal, 'SIGTTOU'):
-                    old_handler = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
-                else:
-                    old_handler = None
-                termios.tcsetattr(fd, termios.TCSANOW, attr_list)
-                if old_handler is not None:
-                    signal.signal(signal.SIGTTOU, old_handler)
+    """
+    Ensure that echo mode is enabled. Some tools such as PDB disable
+    it which causes usability issues after reload.
+    """
+    if not termios or not sys.stdin.isatty():
+        return
+    attr_list = termios.tcgetattr(sys.stdin)
+    if not attr_list[3] & termios.ECHO:
+        attr_list[3] |= termios.ECHO
+        if hasattr(signal, 'SIGTTOU'):
+            old_handler = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+        else:
+            old_handler = None
+        termios.tcsetattr(sys.stdin, termios.TCSANOW, attr_list)
+        if old_handler is not None:
+            signal.signal(signal.SIGTTOU, old_handler)
 
 
 def iter_all_python_module_files():
@@ -98,8 +100,8 @@ def iter_all_python_module_files():
     # modules based on the module name and pass it to iter_modules_and_files().
     # This ensures cached results are returned in the usual case that modules
     # aren't loaded on the fly.
-    modules_view = sorted(list(sys.modules.items()), key=lambda i: i[0])
-    modules = tuple(m[1] for m in modules_view if not isinstance(m[1], weakref.ProxyTypes))
+    keys = sorted(sys.modules)
+    modules = tuple(m for m in map(sys.modules.__getitem__, keys) if not isinstance(m, weakref.ProxyTypes))
     return iter_modules_and_files(modules, frozenset(_error_files))
 
 
@@ -134,16 +136,18 @@ def iter_modules_and_files(modules, extra_files):
     for filename in itertools.chain(sys_file_paths, extra_files):
         if not filename:
             continue
-        path = pathlib.Path(filename)
+        path = Path(filename)
         try:
-            if not path.exists():
-                # The module could have been removed, don't fail loudly if this
-                # is the case.
-                continue
-            results.add(path.resolve().absolute())
+            resolved_path = path.resolve(strict=True).absolute()
+        except FileNotFoundError:
+            # The module could have been removed, don't fail loudly if this
+            # is the case.
+            continue
         except ValueError as e:
             # Network filesystems may return null bytes in file paths.
             logger.debug('"%s" raised when resolving path: "%s"' % (str(e), path))
+            continue
+        results.add(resolved_path)
     return frozenset(results)
 
 
@@ -185,14 +189,15 @@ def sys_path_directories():
     """
     for path in sys.path:
         path = Path(path)
-        if not path.exists():
+        try:
+            resolved_path = path.resolve(strict=True).absolute()
+        except FileNotFoundError:
             continue
-        path = path.resolve().absolute()
         # If the path is a file (like a zip file), watch the parent directory.
-        if path.is_file():
-            yield path.parent
+        if resolved_path.is_file():
+            yield resolved_path.parent
         else:
-            yield path
+            yield resolved_path
 
 
 def get_child_arguments():
@@ -222,9 +227,9 @@ def restart_with_reloader():
     new_environ = {**os.environ, DJANGO_AUTORELOAD_ENV: 'true'}
     args = get_child_arguments()
     while True:
-        exit_code = subprocess.call(args, env=new_environ, close_fds=False)
-        if exit_code != 3:
-            return exit_code
+        p = subprocess.run(args, env=new_environ, close_fds=False)
+        if p.returncode != 3:
+            return p.returncode
 
 
 class BaseReloader:
@@ -246,13 +251,6 @@ class BaseReloader:
             return
         logger.debug('Watching dir %s with glob %s.', path, glob)
         self.directory_globs[path].add(glob)
-
-    def watch_file(self, path):
-        path = Path(path)
-        if not path.is_absolute():
-            raise ValueError('%s must be absolute.' % path)
-        logger.debug('Watching file %s.', path)
-        self.extra_files.add(path)
 
     def watched_files(self, include_globs=True):
         """
@@ -524,7 +522,10 @@ class WatchmanReloader(BaseReloader):
                 self.processed_request.clear()
             try:
                 self.client.receive()
+            except pywatchman.SocketTimeout:
+                pass
             except pywatchman.WatchmanError as ex:
+                logger.debug('Watchman error: %s, checking server status.', ex)
                 self.check_server_status(ex)
             else:
                 for sub in list(self.client.subs.keys()):

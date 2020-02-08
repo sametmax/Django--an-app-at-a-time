@@ -57,9 +57,9 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     def get_field_type(self, data_type, description):
         field_type = super().get_field_type(data_type, description)
-        if description.pk and field_type in {'BigIntegerField', 'IntegerField'}:
-            # No support for BigAutoField as SQLite treats all integer primary
-            # keys as signed 64-bit integers.
+        if description.pk and field_type in {'BigIntegerField', 'IntegerField', 'SmallIntegerField'}:
+            # No support for BigAutoField or SmallAutoField as SQLite treats
+            # all integer primary keys as signed 64-bit integers.
             return 'AutoField'
         return field_type
 
@@ -78,18 +78,13 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         Return a description of the table with the DB-API cursor.description
         interface.
         """
+        cursor.execute('PRAGMA table_info(%s)' % self.connection.ops.quote_name(table_name))
         return [
             FieldInfo(
-                info['name'],
-                info['type'],
-                None,
-                info['size'],
-                None,
-                None,
-                info['null_ok'],
-                info['default'],
-                info['pk'] == 1,
-            ) for info in self._table_info(cursor, table_name)
+                name, data_type, None, get_field_size(data_type), None, None,
+                not notnull, default, pk == 1,
+            )
+            for cid, name, data_type, notnull, default, pk in cursor.fetchall()
         ]
 
     def get_sequences(self, cursor, table_name, table_fields=()):
@@ -205,18 +200,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             if m:
                 return m.group(1) if m.group(1) else m.group(2)
         return None
-
-    def _table_info(self, cursor, name):
-        cursor.execute('PRAGMA table_info(%s)' % self.connection.ops.quote_name(name))
-        # cid, name, type, notnull, default_value, pk
-        return [{
-            'name': field[1],
-            'type': field[2],
-            'size': get_field_size(field[2]),
-            'null_ok': not field[3],
-            'default': field[4],
-            'pk': field[5],  # undocumented
-        } for field in cursor.fetchall()]
 
     def _get_foreign_key_constraints(self, cursor, table_name):
         constraints = {}

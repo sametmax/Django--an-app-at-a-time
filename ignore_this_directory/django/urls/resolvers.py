@@ -8,9 +8,11 @@ attributes of the resolved URL match.
 import functools
 import inspect
 import re
-import threading
+import string
 from importlib import import_module
 from urllib.parse import quote
+
+from asgiref.local import Local
 
 from django.conf import settings
 from django.core.checks import Error, Warning
@@ -62,10 +64,14 @@ class ResolverMatch:
         )
 
 
-@functools.lru_cache(maxsize=None)
 def get_resolver(urlconf=None):
     if urlconf is None:
         urlconf = settings.ROOT_URLCONF
+    return _get_cached_resolver(urlconf)
+
+
+@functools.lru_cache(maxsize=None)
+def _get_cached_resolver(urlconf=None):
     return URLResolver(RegexPattern(r'^/'), urlconf)
 
 
@@ -154,6 +160,7 @@ class RegexPattern(CheckURLMixin):
             # positional arguments.
             kwargs = match.groupdict()
             args = () if kwargs else match.groups()
+            kwargs = {k: v for k, v in kwargs.items() if v is not None}
             return path[match.end():], args, kwargs
         return None
 
@@ -201,6 +208,8 @@ def _route_to_regex(route, is_endpoint=False):
     For example, 'foo/<int:pk>' returns '^foo\\/(?P<pk>[0-9]+)'
     and {'pk': <django.urls.converters.IntConverter>}.
     """
+    if not set(route).isdisjoint(string.whitespace):
+        raise ImproperlyConfigured("URL route '%s' cannot contain whitespace." % route)
     original_route = route
     parts = ['^']
     converters = {}
@@ -380,8 +389,7 @@ class URLResolver:
         # urlpatterns
         self._callback_strs = set()
         self._populated = False
-        self._local = threading.local()
-        self._urlconf_lock = threading.Lock()
+        self._local = Local()
 
     def __repr__(self):
         if isinstance(self.urlconf_name, list) and self.urlconf_name:
@@ -569,14 +577,10 @@ class URLResolver:
 
     @cached_property
     def urlconf_module(self):
-        # import_module is not thread safe if the module throws an exception
-        # during import, and can return an empty module object in Python < 3.6
-        # (see https://bugs.python.org/issue36284).
-        with self._urlconf_lock:
-            if isinstance(self.urlconf_name, str):
-                return import_module(self.urlconf_name)
-            else:
-                return self.urlconf_name
+        if isinstance(self.urlconf_name, str):
+            return import_module(self.urlconf_name)
+        else:
+            return self.urlconf_name
 
     @cached_property
     def url_patterns(self):
